@@ -204,6 +204,11 @@ export function detectSubscriptionFromEmail(
     'renewal',
     'charged',
     'charge',
+    'paid',
+    'billed',
+    'bill',
+    'fee',
+    'debit',
     // Order & purchase
     'your order',
     'order confirmation',
@@ -212,6 +217,10 @@ export function detectSubscriptionFromEmail(
     'thank you for your purchase',
     'thank you for your order',
     'thanks for your purchase',
+    'your receipt',
+    'purchase receipt',
+    'order total',
+    'subtotal',
     // Payment confirmations
     'payment confirmation',
     'payment received',
@@ -220,10 +229,20 @@ export function detectSubscriptionFromEmail(
     'payment failed',
     'payment declined',
     'payment due',
+    'payment method',
     'amount due',
+    'amount paid',
+    'total paid',
+    'total charged',
     'next payment',
     'next billing',
     'next charge',
+    'due date',
+    'overdue',
+    'past due',
+    'thank you for your payment',
+    'thanks for your payment',
+    'we received your payment',
     // Subscription lifecycle
     'your subscription',
     'subscription confirmed',
@@ -232,6 +251,7 @@ export function detectSubscriptionFromEmail(
     'subscription renewal',
     'subscription update',
     'subscription receipt',
+    'subscription fee',
     'monthly subscription',
     'annual subscription',
     'has been charged',
@@ -244,10 +264,22 @@ export function detectSubscriptionFromEmail(
     'will be charged',
     'will be renewed',
     'will renew',
+    'recurring payment',
+    'recurring charge',
+    'recurring billing',
+    'monthly charge',
+    'annual charge',
+    'yearly charge',
     // Plan & membership
     'your plan',
     'plan renewed',
+    'plan renewal',
     'plan activated',
+    'plan confirmation',
+    'service fee',
+    'license fee',
+    'license renewed',
+    'license renewal',
     'membership',
     'membership renewed',
     'membership confirmation',
@@ -260,9 +292,12 @@ export function detectSubscriptionFromEmail(
     // Transaction & financial
     'statement',
     'transaction',
-    'debit',
+    'direct debit',
+    'standing order',
     'thank you for subscribing',
     'thanks for subscribing',
+    'cancellation confirmed',
+    'subscription cancelled',
   ]
 
   const isBillingEmail = billingKeywords.some(
@@ -318,12 +353,13 @@ export function detectSubscriptionFromEmail(
   if (amount === 0) return null
 
   // Detect billing cycle
+  const cycleText = lowerSubject + ' ' + lowerBody
   let billing_cycle: 'monthly' | 'yearly' | 'quarterly' | 'weekly' = 'monthly'
-  if (lowerBody.includes('annual') || lowerBody.includes('yearly') || lowerBody.includes('year')) {
+  if (cycleText.includes('annual') || cycleText.includes('yearly') || cycleText.includes('year plan') || cycleText.includes('/year') || cycleText.includes('per year')) {
     billing_cycle = 'yearly'
-  } else if (lowerBody.includes('quarterly')) {
+  } else if (cycleText.includes('quarterly') || cycleText.includes('every 3 months') || cycleText.includes('3-month')) {
     billing_cycle = 'quarterly'
-  } else if (lowerBody.includes('weekly')) {
+  } else if (cycleText.includes('weekly') || cycleText.includes('per week') || cycleText.includes('/week')) {
     billing_cycle = 'weekly'
   }
 
@@ -344,7 +380,7 @@ export async function fetchGmailMessages(
   maxResults = 200
 ): Promise<{ id: string; threadId: string }[]> {
   const query = encodeURIComponent(
-    '(receipt OR invoice OR billing OR subscription OR renewal OR payment OR charge OR charged OR statement OR membership OR "auto-renew" OR "auto-renewal" OR "order confirmation" OR "payment confirmation" OR "payment received" OR "payment successful" OR "payment processed" OR "amount due" OR "payment due" OR "next payment" OR "will be charged" OR "will renew" OR "successfully charged" OR "has been charged" OR "your subscription" OR "your plan" OR "plan renewed" OR "trial ending" OR "free trial" OR "thank you for subscribing") newer_than:365d'
+    '(receipt OR invoice OR billing OR billed OR bill OR subscription OR renewal OR payment OR paid OR charge OR charged OR fee OR debit OR statement OR membership OR overdue OR recurring OR "auto-renew" OR "auto-renewal" OR "order confirmation" OR "payment confirmation" OR "payment received" OR "payment successful" OR "payment processed" OR "amount due" OR "payment due" OR "next payment" OR "will be charged" OR "will renew" OR "successfully charged" OR "has been charged" OR "your subscription" OR "your plan" OR "plan renewed" OR "trial ending" OR "free trial" OR "thank you for subscribing" OR "recurring payment" OR "recurring charge" OR "subscription fee" OR "service fee" OR "license fee" OR "direct debit" OR "thank you for your payment") newer_than:365d'
   )
   const response = await fetch(
     `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${query}&maxResults=${maxResults}`,
