@@ -375,6 +375,79 @@ export function detectSubscriptionFromEmail(
   }
 }
 
+// Keywords that indicate a subscription was cancelled
+const CANCELLATION_KEYWORDS = [
+  'cancellation confirmed',
+  'subscription cancelled',
+  'subscription canceled',
+  'your subscription has been cancelled',
+  'your subscription has been canceled',
+  "we've cancelled your subscription",
+  "we've canceled your subscription",
+  'we have cancelled your subscription',
+  'we have canceled your subscription',
+  'successfully cancelled your subscription',
+  'your cancellation has been processed',
+  'your account has been cancelled',
+  'your account has been canceled',
+  'your account has been closed',
+  'account cancelled',
+  'account canceled',
+  'account closed',
+  'service cancelled',
+  'service canceled',
+  'membership cancelled',
+  'membership canceled',
+  'plan cancelled',
+  'plan canceled',
+  'cancellation request received',
+  'unsubscribed successfully',
+  'you have been unsubscribed',
+  'access has been cancelled',
+  'access has been removed',
+  'refund processed',
+  'refund has been issued',
+]
+
+// Keywords that indicate a subscription was paused
+const PAUSE_KEYWORDS = [
+  'subscription paused',
+  'subscription has been paused',
+  'your subscription is paused',
+  "we've paused your subscription",
+  'we have paused your subscription',
+  'plan paused',
+  'account paused',
+  'membership paused',
+  'temporarily paused',
+  'paused your account',
+  'billing paused',
+]
+
+/**
+ * Detect if an email signals a cancellation or pause for a known service.
+ * Returns the matched service name and new status, or null if not a status-change email.
+ */
+export function detectStatusFromEmail(
+  subject: string,
+  from: string,
+  body: string
+): { name: string; status: 'cancelled' | 'paused' } | null {
+  const lowerFrom = from.toLowerCase()
+  const combined = subject.toLowerCase() + ' ' + body.toLowerCase()
+
+  const pattern = SUBSCRIPTION_PATTERNS.find((p) => lowerFrom.includes(p.sender))
+  if (!pattern) return null
+
+  if (CANCELLATION_KEYWORDS.some((kw) => combined.includes(kw))) {
+    return { name: pattern.name, status: 'cancelled' }
+  }
+  if (PAUSE_KEYWORDS.some((kw) => combined.includes(kw))) {
+    return { name: pattern.name, status: 'paused' }
+  }
+  return null
+}
+
 export async function fetchGmailMessages(
   accessToken: string,
   maxResults = 200
