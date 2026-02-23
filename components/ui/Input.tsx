@@ -44,7 +44,9 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
                 </div>
                 {error && <p className="text-xs text-danger mt-0.5">{error}</p>}
                 {hint && !error && (
-                    <p className="text-xs text-muted-foreground mt-0.5">{hint}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                        {hint}
+                    </p>
                 )}
             </div>
         );
@@ -86,7 +88,9 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
                 />
                 {error && <p className="text-xs text-danger mt-0.5">{error}</p>}
                 {hint && !error && (
-                    <p className="text-xs text-muted-foreground mt-0.5">{hint}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                        {hint}
+                    </p>
                 )}
             </div>
         );
@@ -138,7 +142,9 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
                 </div>
                 {error && <p className="text-xs text-danger mt-0.5">{error}</p>}
                 {hint && !error && (
-                    <p className="text-xs text-muted-foreground mt-0.5">{hint}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                        {hint}
+                    </p>
                 )}
             </div>
         );

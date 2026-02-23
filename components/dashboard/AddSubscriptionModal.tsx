@@ -152,28 +152,27 @@ export function AddSubscriptionModal({
     return (
         <AnimatePresence>
             {open && (
-                <>
-                    {/* Overlay */}
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        transition={{ duration: 0.15 }}
-                        className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50"
-                        onClick={onClose}
-                    />
-
-                    {/* Modal */}
+                /* Overlay — also acts as the flex centering container */
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.15 }}
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm"
+                    onClick={onClose}
+                >
+                    {/* Modal panel */}
                     <motion.div
                         initial={{ opacity: 0, scale: 0.96, y: 8 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.96, y: 8 }}
                         transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-                        className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-md max-h-[90vh] overflow-y-auto"
+                        className="w-full max-w-md flex flex-col"
+                        onClick={(e) => e.stopPropagation()}
                     >
-                        <div className="bg-surface border border-border rounded-2xl shadow-2xl">
-                            {/* Header */}
-                            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+                        <div className="bg-surface border border-border rounded-2xl shadow-2xl flex flex-col max-h-[90vh]">
+                            {/* Header — never scrolls */}
+                            <div className="flex-shrink-0 flex items-center justify-between px-6 py-4 border-b border-border">
                                 <div className="flex items-center gap-2">
                                     <div className="w-6 h-6 rounded-md bg-accent-subtle flex items-center justify-center">
                                         <Zap className="w-3.5 h-3.5 text-accent" />
@@ -192,133 +191,144 @@ export function AddSubscriptionModal({
                                 </button>
                             </div>
 
-                            {/* Form */}
-                            <form
-                                onSubmit={handleSubmit}
-                                className="p-6 space-y-4"
-                            >
-                                <Input
-                                    label="Service name"
-                                    placeholder="Netflix, Spotify, GitHub..."
-                                    value={form.name}
-                                    onChange={(e) =>
-                                        update("name", e.target.value)
-                                    }
-                                    error={errors.name}
-                                    autoFocus
-                                />
-
-                                <div className="grid grid-cols-2 gap-3 items-end">
+                            {/* Scrollable form body */}
+                            <div className="overflow-y-auto flex-1">
+                                <form
+                                    onSubmit={handleSubmit}
+                                    className="p-6 space-y-4"
+                                >
                                     <Input
-                                        label="Amount"
-                                        type="number"
-                                        step="0.01"
-                                        min="0"
-                                        placeholder="9.99"
-                                        value={form.amount}
+                                        label="Service name"
+                                        placeholder="Netflix, Spotify, GitHub..."
+                                        value={form.name}
                                         onChange={(e) =>
-                                            update("amount", e.target.value)
+                                            update("name", e.target.value)
                                         }
-                                        error={errors.amount}
+                                        error={errors.name}
+                                        autoFocus
                                     />
-                                    <Select
-                                        label="Currency"
-                                        value={form.currency}
-                                        onChange={(e) =>
-                                            update("currency", e.target.value)
-                                        }
-                                        options={currencies}
-                                    />
-                                </div>
 
-                                <div className="grid grid-cols-2 gap-3 items-end">
-                                    <Select
-                                        label="Billing cycle"
-                                        value={form.billing_cycle}
+                                    <div className="grid grid-cols-2 gap-3 items-end">
+                                        <Input
+                                            label="Amount"
+                                            type="number"
+                                            step="0.01"
+                                            min="0"
+                                            placeholder="9.99"
+                                            value={form.amount}
+                                            onChange={(e) =>
+                                                update("amount", e.target.value)
+                                            }
+                                            error={errors.amount}
+                                        />
+                                        <Select
+                                            label="Currency"
+                                            value={form.currency}
+                                            onChange={(e) =>
+                                                update(
+                                                    "currency",
+                                                    e.target.value,
+                                                )
+                                            }
+                                            options={currencies}
+                                        />
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-3 items-end">
+                                        <Select
+                                            label="Billing cycle"
+                                            value={form.billing_cycle}
+                                            onChange={(e) =>
+                                                update(
+                                                    "billing_cycle",
+                                                    e.target.value,
+                                                )
+                                            }
+                                            options={billingCycles}
+                                        />
+                                        <Select
+                                            label="Status"
+                                            value={form.status}
+                                            onChange={(e) =>
+                                                update("status", e.target.value)
+                                            }
+                                            options={statuses}
+                                        />
+                                    </div>
+
+                                    <Input
+                                        label="Next billing date"
+                                        type="date"
+                                        value={form.next_billing_date}
                                         onChange={(e) =>
                                             update(
-                                                "billing_cycle",
+                                                "next_billing_date",
                                                 e.target.value,
                                             )
                                         }
-                                        options={billingCycles}
+                                        error={errors.next_billing_date}
                                     />
+
                                     <Select
-                                        label="Status"
-                                        value={form.status}
+                                        label="Category"
+                                        value={form.category_id}
                                         onChange={(e) =>
-                                            update("status", e.target.value)
+                                            update(
+                                                "category_id",
+                                                e.target.value,
+                                            )
                                         }
-                                        options={statuses}
+                                        options={categoryOptions}
                                     />
-                                </div>
 
-                                <Input
-                                    label="Next billing date"
-                                    type="date"
-                                    value={form.next_billing_date}
-                                    onChange={(e) =>
-                                        update(
-                                            "next_billing_date",
-                                            e.target.value,
-                                        )
-                                    }
-                                    error={errors.next_billing_date}
-                                />
+                                    <Input
+                                        label="Website URL"
+                                        type="url"
+                                        placeholder="https://netflix.com"
+                                        value={form.website_url}
+                                        onChange={(e) =>
+                                            update(
+                                                "website_url",
+                                                e.target.value,
+                                            )
+                                        }
+                                    />
 
-                                <Select
-                                    label="Category"
-                                    value={form.category_id}
-                                    onChange={(e) =>
-                                        update("category_id", e.target.value)
-                                    }
-                                    options={categoryOptions}
-                                />
+                                    <Textarea
+                                        label="Notes"
+                                        placeholder="Optional notes..."
+                                        value={form.notes}
+                                        onChange={(e) =>
+                                            update("notes", e.target.value)
+                                        }
+                                        className="min-h-[60px]"
+                                    />
 
-                                <Input
-                                    label="Website URL"
-                                    type="url"
-                                    placeholder="https://netflix.com"
-                                    value={form.website_url}
-                                    onChange={(e) =>
-                                        update("website_url", e.target.value)
-                                    }
-                                />
-
-                                <Textarea
-                                    label="Notes"
-                                    placeholder="Optional notes..."
-                                    value={form.notes}
-                                    onChange={(e) =>
-                                        update("notes", e.target.value)
-                                    }
-                                    className="min-h-[60px]"
-                                />
-
-                                {/* Actions */}
-                                <div className="flex gap-2 pt-2">
-                                    <Button
-                                        type="button"
-                                        variant="secondary"
-                                        onClick={onClose}
-                                        className="flex-1"
-                                    >
-                                        Cancel
-                                    </Button>
-                                    <Button
-                                        type="submit"
-                                        loading={loading}
-                                        className="flex-1"
-                                    >
-                                        {isEditing
-                                            ? "Save changes"
-                                            : "Add subscription"}
-                                    </Button>
-                                </div>
-                            </form>
+                                    {/* Actions */}
+                                    <div className="flex gap-2 pt-2">
+                                        <Button
+                                            type="button"
+                                            variant="secondary"
+                                            onClick={onClose}
+                                            className="flex-1"
+                                        >
+                                            Cancel
+                                        </Button>
+                                        <Button
+                                            type="submit"
+                                            loading={loading}
+                                            className="flex-1"
+                                        >
+                                            {isEditing
+                                                ? "Save changes"
+                                                : "Add subscription"}
+                                        </Button>
+                                    </div>
+                                </form>
+                            </div>
                         </div>
                     </motion.div>
-                </>
+                </motion.div>
             )}
         </AnimatePresence>
     );
