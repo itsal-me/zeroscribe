@@ -67,7 +67,7 @@ function LoginForm() {
             </header>
 
             {/* Main content */}
-            <main className="relative z-10 flex-1 flex items-center justify-center px-4 py-12">
+            <main className="relative z-10 flex-1 flex items-center justify-center px-4 py-6 sm:py-12">
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -75,9 +75,9 @@ function LoginForm() {
                     className="w-full max-w-sm"
                 >
                     {/* Card */}
-                    <div className="bg-surface border border-border rounded-2xl p-8 shadow-xl">
+                    <div className="bg-surface border border-border rounded-2xl p-5 sm:p-8 shadow-xl">
                         {/* Header */}
-                        <div className="text-center mb-8">
+                        <div className="text-center mb-5 sm:mb-8">
                             <h1 className="text-xl font-bold tracking-tight mb-2">
                                 Welcome back
                             </h1>
@@ -168,7 +168,7 @@ function LoginForm() {
                     </div>
 
                     {/* Security note */}
-                    <div className="mt-6 flex items-start gap-2.5 px-1">
+                    <div className="mt-4 sm:mt-6 flex items-start gap-2.5 px-1">
                         <Shield className="w-3.5 h-3.5 text-muted-foreground/60 mt-0.5 shrink-0" />
                         <p className="text-xs text-muted-foreground/70 leading-relaxed">
                             We use Google OAuth for secure, passwordless
