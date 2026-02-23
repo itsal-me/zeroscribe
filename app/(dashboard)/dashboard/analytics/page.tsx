@@ -15,6 +15,7 @@ import {
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { useSubscriptions } from "@/hooks/useSubscriptions";
 import {
+    cn,
     formatCurrency,
     getMonthlyAmount,
     getTotalMonthlySpend,
@@ -118,9 +119,9 @@ export default function AnalyticsPage() {
             />
 
             <div className="flex-1 overflow-y-auto">
-                <div className="max-w-5xl mx-auto px-6 py-6 space-y-5">
+                <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-5">
                     {/* Summary cards */}
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                         {[
                             {
                                 label: "Monthly total",
@@ -137,10 +138,13 @@ export default function AnalyticsPage() {
                                 value: formatCurrency(avgPerSub),
                                 sub: "Active only",
                             },
-                        ].map((card) => (
+                        ].map((card, idx) => (
                             <div
                                 key={card.label}
-                                className="bg-surface border border-border rounded-xl p-4"
+                                className={cn(
+                                    "bg-surface border border-border rounded-xl p-4",
+                                    idx === 2 && "col-span-2 sm:col-span-1",
+                                )}
                             >
                                 <p className="text-xs text-muted-foreground mb-1">
                                     {card.label}

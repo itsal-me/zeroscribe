@@ -129,6 +129,13 @@
            placeholder:text-muted-foreground/60 
            focus:outline-none focus:ring-1 focus:ring-accent/50 focus:border-accent/50 
            transition-colors duration-150;
+    }
+
+    /* Apply correct color-scheme per theme for native widgets (date pickers etc.) */
+    :root .input-base {
+        color-scheme: light;
+    }
+    .dark .input-base {
         color-scheme: dark;
     }
 
@@ -139,6 +146,11 @@
 
     .sidebar-link-active {
         @apply bg-accent-subtle text-accent font-medium;
+    }
+
+    /* Mobile touch targets */
+    .touch-target {
+        @apply min-h-[44px] min-w-[44px];
     }
 }
 
@@ -168,5 +180,17 @@
         animation:
             fade-in 0.3s ease-out,
             slide-up 0.3s ease-out;
+    }
+
+    /* iOS safe area support for mobile bottom nav */
+    .mobile-safe-bottom {
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    /* Prevent double-tap zoom on interactive elements (iOS) */
+    button,
+    a,
+    [role="button"] {
+        touch-action: manipulation;
     }
 }

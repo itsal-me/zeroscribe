@@ -118,21 +118,21 @@ export default function SubscriptionsPage() {
                             onClick={handleGmailScan}
                             icon={<ScanLine className="w-3.5 h-3.5" />}
                         >
-                            Scan Gmail
+                            <span className="hidden sm:inline">Scan Gmail</span>
                         </Button>
                         <Button
                             size="sm"
                             onClick={() => setModalOpen(true)}
                             icon={<Plus className="w-3.5 h-3.5" />}
                         >
-                            Add
+                            <span className="hidden sm:inline">Add</span>
                         </Button>
                     </div>
                 }
             />
 
             <div className="flex-1 overflow-y-auto">
-                <div className="max-w-5xl mx-auto px-6 py-6 space-y-4">
+                <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-4">
                     {/* Filters bar */}
                     <div className="flex flex-col sm:flex-row gap-3">
                         {/* Search */}

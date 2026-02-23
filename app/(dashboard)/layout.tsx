@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Sidebar } from "@/components/dashboard/Sidebar";
+import { MobileNav } from "@/components/dashboard/MobileNav";
 import type { Profile } from "@/types";
 
 export default async function DashboardLayout({
@@ -27,9 +28,10 @@ export default async function DashboardLayout({
     return (
         <div className="flex h-screen overflow-hidden bg-background">
             <Sidebar profile={profile as Profile} />
-            <main className="flex-1 flex flex-col overflow-hidden">
+            <main className="flex-1 flex flex-col overflow-hidden pb-16 sm:pb-0">
                 {children}
             </main>
+            <MobileNav />
         </div>
     );
 }

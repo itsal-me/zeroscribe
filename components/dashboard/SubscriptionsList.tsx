@@ -151,6 +151,10 @@ function SubscriptionRow({
                         {sub.categories.name}
                     </span>
                 )}
+                {/* Renewal date shown inline on mobile */}
+                <div className="sm:hidden mt-0.5">
+                    <RenewalBadge date={sub.next_billing_date} />
+                </div>
             </div>
 
             {/* Renewal date */}
@@ -188,7 +192,7 @@ function SubscriptionRow({
             <div className="relative shrink-0">
                 <button
                     onClick={() => setMenuOpen(!menuOpen)}
-                    className="opacity-0 group-hover:opacity-100 w-6 h-6 rounded-md hover:bg-muted flex items-center justify-center text-muted-foreground transition-all"
+                    className="sm:opacity-0 sm:group-hover:opacity-100 opacity-100 w-7 h-7 rounded-md hover:bg-muted flex items-center justify-center text-muted-foreground transition-all"
                 >
                     <MoreHorizontal className="w-3.5 h-3.5" />
                 </button>
@@ -205,14 +209,14 @@ function SubscriptionRow({
                                 animate={{ opacity: 1, scale: 1, y: 0 }}
                                 exit={{ opacity: 0, scale: 0.95, y: -4 }}
                                 transition={{ duration: 0.12 }}
-                                className="absolute right-0 top-8 w-44 bg-surface border border-border rounded-xl shadow-xl z-50 overflow-hidden py-1"
+                                className="absolute right-0 top-8 w-48 bg-surface border border-border rounded-xl shadow-xl z-50 overflow-hidden py-1"
                             >
                                 <button
                                     onClick={() => {
                                         onEdit(sub);
                                         setMenuOpen(false);
                                     }}
-                                    className="flex items-center gap-2.5 w-full px-3 py-2 text-xs hover:bg-muted transition-colors"
+                                    className="flex items-center gap-2.5 w-full px-3 py-3 sm:py-2 text-xs hover:bg-muted transition-colors"
                                 >
                                     <Edit2 className="w-3.5 h-3.5 text-muted-foreground" />
                                     Edit
@@ -223,7 +227,7 @@ function SubscriptionRow({
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         onClick={() => setMenuOpen(false)}
-                                        className="flex items-center gap-2.5 w-full px-3 py-2 text-xs hover:bg-muted transition-colors"
+                                        className="flex items-center gap-2.5 w-full px-3 py-3 sm:py-2 text-xs hover:bg-muted transition-colors"
                                     >
                                         <ExternalLink className="w-3.5 h-3.5 text-muted-foreground" />
                                         Visit website
@@ -235,7 +239,7 @@ function SubscriptionRow({
                                             onPause(sub.id);
                                             setMenuOpen(false);
                                         }}
-                                        className="flex items-center gap-2.5 w-full px-3 py-2 text-xs hover:bg-muted transition-colors"
+                                        className="flex items-center gap-2.5 w-full px-3 py-3 sm:py-2 text-xs hover:bg-muted transition-colors"
                                     >
                                         <PauseCircle className="w-3.5 h-3.5 text-muted-foreground" />
                                         Pause
@@ -246,7 +250,7 @@ function SubscriptionRow({
                                             onReactivate(sub.id);
                                             setMenuOpen(false);
                                         }}
-                                        className="flex items-center gap-2.5 w-full px-3 py-2 text-xs hover:bg-muted transition-colors"
+                                        className="flex items-center gap-2.5 w-full px-3 py-3 sm:py-2 text-xs hover:bg-muted transition-colors"
                                     >
                                         <PlayCircle className="w-3.5 h-3.5 text-muted-foreground" />
                                         Reactivate
@@ -256,7 +260,7 @@ function SubscriptionRow({
                                 <button
                                     onClick={handleDelete}
                                     disabled={deleting}
-                                    className="flex items-center gap-2.5 w-full px-3 py-2 text-xs text-danger hover:bg-danger-subtle transition-colors disabled:opacity-50"
+                                    className="flex items-center gap-2.5 w-full px-3 py-3 sm:py-2 text-xs text-danger hover:bg-danger-subtle transition-colors disabled:opacity-50"
                                 >
                                     <Trash2 className="w-3.5 h-3.5" />
                                     {deleting ? "Removing..." : "Remove"}
