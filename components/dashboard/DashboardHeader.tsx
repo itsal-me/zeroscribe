@@ -16,7 +16,7 @@ export function DashboardHeader({
     actions,
 }: DashboardHeaderProps) {
     return (
-        <header className="h-14 border-b border-border bg-surface/60 backdrop-blur-sm flex items-center justify-between px-4 sm:px-6 shrink-0 gap-2">
+        <header className="relative z-[60] h-14 border-b border-border bg-surface/60 backdrop-blur-sm flex items-center justify-between px-4 sm:px-6 shrink-0 gap-2">
             {/* Left: Title */}
             <div>
                 <h1 className="text-sm font-semibold">{title}</h1>
