@@ -1,0 +1,170 @@
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600;700;800&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    :root {
+        --background: 0 0% 98%;
+        --foreground: 240 10% 4%;
+        --surface: 0 0% 100%;
+        --surface-elevated: 240 5% 96%;
+        --border: 240 6% 90%;
+        --border-subtle: 240 6% 94%;
+        --muted: 240 5% 96%;
+        --muted-foreground: 240 4% 46%;
+        --accent: 239 84% 67%;
+        --accent-foreground: 0 0% 100%;
+        --accent-subtle: 226 100% 97%;
+        --success: 142 71% 45%;
+        --success-foreground: 0 0% 100%;
+        --success-subtle: 141 76% 96%;
+        --warning: 38 92% 50%;
+        --warning-foreground: 0 0% 100%;
+        --warning-subtle: 48 96% 95%;
+        --danger: 0 84% 60%;
+        --danger-foreground: 0 0% 100%;
+        --danger-subtle: 0 86% 97%;
+        --radius: 0.625rem;
+    }
+
+    .dark {
+        --background: 240 10% 4%;
+        --foreground: 0 0% 98%;
+        --surface: 240 6% 6%;
+        --surface-elevated: 240 5% 9%;
+        --border: 240 4% 14%;
+        --border-subtle: 240 4% 10%;
+        --muted: 240 4% 12%;
+        --muted-foreground: 240 4% 52%;
+        --accent: 234 89% 74%;
+        --accent-foreground: 240 10% 4%;
+        --accent-subtle: 226 44% 14%;
+        --success: 142 71% 58%;
+        --success-foreground: 240 10% 4%;
+        --success-subtle: 142 50% 8%;
+        --warning: 38 92% 60%;
+        --warning-foreground: 240 10% 4%;
+        --warning-subtle: 38 70% 8%;
+        --danger: 0 84% 65%;
+        --danger-foreground: 240 10% 4%;
+        --danger-subtle: 0 70% 8%;
+    }
+}
+
+@layer base {
+    * {
+        @apply border-border;
+    }
+
+    html {
+        scroll-behavior: smooth;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+
+    body {
+        @apply bg-background text-foreground font-sans;
+        font-feature-settings: "cv11", "ss01";
+        font-variation-settings: "opsz" 32;
+    }
+
+    ::selection {
+        @apply bg-accent/20 text-accent;
+    }
+
+    ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+        @apply bg-transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        @apply bg-border rounded-full;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        @apply bg-muted-foreground/30;
+    }
+}
+
+@layer components {
+    .glass {
+        @apply backdrop-blur-xl bg-surface/80 border border-border;
+    }
+
+    .glass-subtle {
+        @apply backdrop-blur-sm bg-surface/40 border border-border/50;
+    }
+
+    .gradient-text {
+        @apply bg-clip-text text-transparent bg-gradient-to-r from-accent via-purple-400 to-accent;
+    }
+
+    .glow {
+        box-shadow:
+            0 0 20px hsl(var(--accent) / 0.15),
+            0 0 60px hsl(var(--accent) / 0.05);
+    }
+
+    .glow-sm {
+        box-shadow: 0 0 10px hsl(var(--accent) / 0.2);
+    }
+
+    .card-hover {
+        @apply transition-all duration-200 hover:border-border hover:shadow-lg hover:-translate-y-0.5;
+    }
+
+    .nav-link {
+        @apply text-sm text-muted-foreground hover:text-foreground transition-colors duration-150;
+    }
+
+    .input-base {
+        @apply w-full px-3 py-2 text-sm bg-surface border border-border rounded-lg 
+           placeholder:text-muted-foreground/60 
+           focus:outline-none focus:ring-1 focus:ring-accent/50 focus:border-accent/50 
+           transition-colors duration-150;
+    }
+
+    .sidebar-link {
+        @apply flex items-center gap-3 px-3 py-2 text-sm text-muted-foreground rounded-lg
+           hover:bg-muted hover:text-foreground transition-all duration-150;
+    }
+
+    .sidebar-link-active {
+        @apply bg-accent-subtle text-accent font-medium;
+    }
+}
+
+@layer utilities {
+    .text-balance {
+        text-wrap: balance;
+    }
+
+    .no-scrollbar::-webkit-scrollbar {
+        display: none;
+    }
+
+    .no-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+
+    .dot-grid {
+        background-image: radial-gradient(
+            hsl(var(--border)) 1px,
+            transparent 1px
+        );
+        background-size: 24px 24px;
+    }
+
+    .animate-in {
+        animation:
+            fade-in 0.3s ease-out,
+            slide-up 0.3s ease-out;
+    }
+}
