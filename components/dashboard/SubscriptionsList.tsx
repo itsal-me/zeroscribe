@@ -9,6 +9,10 @@ import {
     PlayCircle,
     ExternalLink,
     Mail,
+    CheckCircle,
+    X,
+    AlertTriangle,
+    Info,
 } from "lucide-react";
 import {
     cn,
@@ -29,6 +33,8 @@ interface SubscriptionsListProps {
     onDelete: (id: string) => Promise<void>;
     onPause: (id: string) => Promise<void>;
     onReactivate: (id: string) => Promise<void>;
+    onApprove?: (id: string) => Promise<void>;
+    onDismiss?: (id: string) => Promise<void>;
     loading?: boolean;
     compact?: boolean;
 }
@@ -41,7 +47,136 @@ const statusVariant: Record<
     trial: "warning",
     paused: "muted",
     cancelled: "danger",
+    pending_review: "warning",
 };
+
+// ── Confidence badge ─────────────────────────────────────────────────────────────
+function ConfidenceBadge({ score }: { score: number }) {
+    const isHigh = score >= 90;
+    return (
+        <span
+            title={`Detection confidence: ${score}%`}
+            className={cn(
+                "text-[9px] font-bold px-1.5 py-0.5 rounded-full tabular-nums shrink-0",
+                isHigh
+                    ? "bg-success-subtle text-success"
+                    : "bg-warning-subtle text-warning",
+            )}
+        >
+            {score}%
+        </span>
+    );
+}
+
+// ── Pending review card ──────────────────────────────────────────────────────────
+function PendingReviewCard({
+    sub,
+    onApprove,
+    onDismiss,
+}: {
+    sub: Subscription;
+    onApprove: (id: string) => Promise<void>;
+    onDismiss: (id: string) => Promise<void>;
+}) {
+    const [busy, setBusy] = useState(false);
+
+    const handle = async (fn: () => Promise<void>) => {
+        setBusy(true);
+        try {
+            await fn();
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const reasons = sub.detection_reason
+        ? sub.detection_reason.split(" | ")
+        : [];
+
+    return (
+        <motion.div
+            layout
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            className="rounded-xl border border-warning/30 bg-warning-subtle/20 p-4 space-y-3"
+        >
+            {/* Top row: logo + name + amount + actions */}
+            <div className="flex items-center gap-3">
+                {sub.logo_url ? (
+                    <div className="w-9 h-9 rounded-lg overflow-hidden bg-muted border border-border shrink-0">
+                        <Image
+                            src={sub.logo_url}
+                            alt={sub.name}
+                            width={36}
+                            height={36}
+                            className="w-full h-full object-contain p-0.5"
+                            onError={(e) => {
+                                (e.target as HTMLImageElement).style.display =
+                                    "none";
+                            }}
+                        />
+                    </div>
+                ) : (
+                    <div className="w-9 h-9 rounded-lg bg-accent-subtle border border-accent/20 flex items-center justify-center text-[11px] font-semibold text-accent shrink-0">
+                        {getInitials(sub.name)}
+                    </div>
+                )}
+
+                <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs font-semibold">
+                            {sub.name}
+                        </span>
+                        {sub.confidence_score != null && (
+                            <ConfidenceBadge score={sub.confidence_score} />
+                        )}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">
+                        {formatCurrency(sub.amount, sub.currency)}/
+                        {sub.billing_cycle.slice(0, 2)} &middot; renews{" "}
+                        {formatDate(sub.next_billing_date)}
+                    </p>
+                </div>
+
+                {/* Approve / Dismiss */}
+                <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                        disabled={busy}
+                        onClick={() => handle(() => onDismiss(sub.id))}
+                        title="Dismiss"
+                        className="w-7 h-7 rounded-lg border border-border hover:border-danger/40 hover:bg-danger-subtle flex items-center justify-center text-muted-foreground hover:text-danger transition-colors disabled:opacity-40"
+                    >
+                        <X className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                        disabled={busy}
+                        onClick={() => handle(() => onApprove(sub.id))}
+                        title="Add to my subscriptions"
+                        className="w-7 h-7 rounded-lg border border-success/40 bg-success-subtle hover:bg-success/20 flex items-center justify-center text-success transition-colors disabled:opacity-40"
+                    >
+                        <CheckCircle className="w-3.5 h-3.5" />
+                    </button>
+                </div>
+            </div>
+
+            {/* Signal reason pills */}
+            {reasons.length > 0 && (
+                <div className="flex items-center gap-1.5 flex-wrap">
+                    <Info className="w-3 h-3 text-muted-foreground/50 shrink-0" />
+                    {reasons.map((r) => (
+                        <span
+                            key={r}
+                            className="text-[9px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground"
+                        >
+                            {r}
+                        </span>
+                    ))}
+                </div>
+            )}
+        </motion.div>
+    );
+}
 
 function RenewalBadge({ date }: { date: string }) {
     const days = getDaysUntilRenewal(date);
@@ -141,8 +276,14 @@ function SubscriptionRow({
                         {sub.name}
                     </span>
                     {sub.auto_detected && (
-                        <span title="Auto-detected from Gmail">
+                        <span
+                            title="Auto-detected from Gmail"
+                            className="flex items-center gap-1"
+                        >
                             <Mail className="w-3 h-3 text-muted-foreground/50 shrink-0" />
+                            {sub.confidence_score != null && (
+                                <ConfidenceBadge score={sub.confidence_score} />
+                            )}
                         </span>
                     )}
                 </div>
@@ -280,9 +421,14 @@ export function SubscriptionsList({
     onDelete,
     onPause,
     onReactivate,
+    onApprove,
+    onDismiss,
     loading = false,
     compact = false,
 }: SubscriptionsListProps) {
+    const pending = subscriptions.filter((s) => s.status === "pending_review");
+    const regular = subscriptions.filter((s) => s.status !== "pending_review");
+
     if (loading) {
         return (
             <div className="space-y-2">
@@ -313,8 +459,40 @@ export function SubscriptionsList({
 
     return (
         <div className="space-y-0.5">
-            {/* Table header */}
-            {!compact && (
+            {/* ── Pending review section ─────────────────────────────── */}
+            {pending.length > 0 && onApprove && onDismiss && (
+                <div className="mb-4 space-y-3">
+                    <div className="flex items-center gap-2 px-1">
+                        <AlertTriangle className="w-3.5 h-3.5 text-warning shrink-0" />
+                        <span className="text-xs font-semibold">
+                            Review detected subscriptions
+                        </span>
+                        <span className="px-1.5 py-0.5 rounded-full bg-warning-subtle text-warning text-[10px] font-semibold">
+                            {pending.length}
+                        </span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground px-1">
+                        These were found in your Gmail with moderate confidence.
+                        Accept ones that are genuine, dismiss the rest.
+                    </p>
+                    <AnimatePresence>
+                        {pending.map((sub) => (
+                            <PendingReviewCard
+                                key={sub.id}
+                                sub={sub}
+                                onApprove={onApprove}
+                                onDismiss={onDismiss}
+                            />
+                        ))}
+                    </AnimatePresence>
+                    {regular.length > 0 && (
+                        <div className="h-px bg-border my-2" />
+                    )}
+                </div>
+            )}
+
+            {/* ── Regular subscription table ────────────────────────────── */}
+            {!compact && regular.length > 0 && (
                 <div className="flex items-center gap-3 px-4 py-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
                     <div className="w-8 shrink-0" />
                     <div className="flex-1">Name</div>
@@ -328,7 +506,7 @@ export function SubscriptionsList({
             )}
 
             <AnimatePresence>
-                {subscriptions.map((sub) => (
+                {regular.map((sub) => (
                     <SubscriptionRow
                         key={sub.id}
                         sub={sub}

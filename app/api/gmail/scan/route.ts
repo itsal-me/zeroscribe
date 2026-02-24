@@ -6,6 +6,7 @@ import {
   detectSubscriptionFromEmail,
   detectStatusFromEmail,
   refreshAccessToken,
+  SUBSCRIPTION_PATTERNS,
 } from '@/lib/gmail'
 import { addMonths, addYears, addWeeks, format } from 'date-fns'
 
@@ -73,11 +74,15 @@ export async function POST() {
     const existingThreadIdSet = new Set(
       existingSubscriptions?.map((s) => s.email_thread_id).filter(Boolean) || []
     )
-    // Name-level dedup: skip services that already have an active record
+    // Name-level dedup: skip services that already have an active or pending_review record
     const existingActiveNames = new Set(
       existingSubscriptions
-        ?.filter((s) => s.status === 'active')
+        ?.filter((s) => s.status === 'active' || s.status === 'pending_review')
         .map((s) => (s.name as string).toLowerCase()) || []
+    )
+    // Historical service names (any status) — used for confidence scoring
+    const existingServiceNames = new Set(
+      existingSubscriptions?.map((s) => (s.name as string).toLowerCase()) || []
     )
 
     // ── Pass 1: fetch & analyse all emails ──────────────────────────────────
@@ -95,8 +100,17 @@ export async function POST() {
       try {
         const email = await fetchGmailMessage(accessToken, msg.id)
         processedThreadIds.add(msg.threadId)
+
+        // Determine if this service has been seen in historical scans
+        const senderPattern = SUBSCRIPTION_PATTERNS.find(
+          (p) => email.from.toLowerCase().includes(p.sender)
+        )
+        const hasPreviousHistory = senderPattern
+          ? existingServiceNames.has(senderPattern.name.toLowerCase())
+          : false
+
         emailAnalyses.push({
-          detection: detectSubscriptionFromEmail(email.subject, email.from, email.body, email.threadId),
+          detection: detectSubscriptionFromEmail(email.subject, email.from, email.body, email.threadId, hasPreviousHistory),
           statusChange: detectStatusFromEmail(email.subject, email.from, email.body),
         })
       } catch {
@@ -135,15 +149,14 @@ export async function POST() {
     for (const [, detected] of serviceDetections) {
       const finalStatus = serviceStatus.get(detected.name) ?? 'active'
 
-      // Skip one-time charges — they are not recurring subscriptions
-      if (detected.is_one_time && !detected.is_recurring) {
-        continue
-      }
+      // Skip detections the model is not confident enough about
+      if (detected.confidence_suggestion === 'ignore') continue
 
-      // Skip if an active subscription with the same name already exists in DB
-      if (finalStatus === 'active' && existingActiveNames.has(detected.name.toLowerCase())) {
-        continue
-      }
+      // Skip one-time charges — they are not recurring subscriptions
+      if (detected.is_one_time && !detected.is_recurring) continue
+
+      // Skip if an active or pending_review subscription with the same name already exists
+      if (existingActiveNames.has(detected.name.toLowerCase())) continue
 
       // Use the date extracted directly from the email when available;
       // otherwise compute a best-guess from the detected billing cycle.
@@ -161,6 +174,17 @@ export async function POST() {
         nextBillingDate = format(addMonths(now, 1), 'yyyy-MM-dd')
       }
 
+      // Determine initial status:
+      //   cancelled/paused from statusChange emails take priority
+      //   auto (>=90%) → active immediately
+      //   ask (60-89%) → pending_review (surfaces in UI for user approval)
+      const recordStatus =
+        finalStatus !== 'active'
+          ? finalStatus
+          : detected.confidence_suggestion === 'auto'
+          ? 'active'
+          : 'pending_review'
+
       await supabase.from('subscriptions').insert({
         user_id: user.id,
         name: detected.name,
@@ -168,17 +192,19 @@ export async function POST() {
         currency: detected.currency,
         billing_cycle: detected.billing_cycle,
         next_billing_date: nextBillingDate,
-        status: finalStatus,
+        status: recordStatus,
         auto_detected: true,
         source: 'gmail',
         email_thread_id: detected.email_thread_id,
         email_sender: detected.email_sender,
         logo_url: detected.logo_url,
         website_url: detected.website_url,
+        confidence_score: detected.confidence_score,
+        detection_reason: detected.detection_reason,
       })
 
-      // Only notify for newly detected active subscriptions
-      if (finalStatus === 'active') {
+      if (recordStatus === 'active') {
+        // Notify for auto-confirmed subscriptions
         await supabase.from('notifications').insert({
           user_id: user.id,
           type: 'payment_detected',
@@ -186,6 +212,17 @@ export async function POST() {
           message: `We found a ${detected.name} subscription for ${
             detected.currency === 'USD' ? '$' : detected.currency
           }${detected.amount}/${detected.billing_cycle} in your Gmail.`,
+        })
+        existingActiveNames.add(detected.name.toLowerCase())
+      } else if (recordStatus === 'pending_review') {
+        // Notify user to review the detection
+        await supabase.from('notifications').insert({
+          user_id: user.id,
+          type: 'payment_detected',
+          title: `Review: ${detected.name} detected`,
+          message: `We found a possible ${detected.name} subscription (${
+            detected.currency === 'USD' ? '$' : detected.currency
+          }${detected.amount}/${detected.billing_cycle}) with ${detected.confidence_score}% confidence. Please review it.`,
         })
         existingActiveNames.add(detected.name.toLowerCase())
       }

@@ -169,6 +169,33 @@ export function useSubscriptions() {
     return updateSubscription(id, { status: 'active' })
   }
 
+  const approveDetection = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('subscriptions')
+        .update({ status: 'active' })
+        .eq('id', id)
+      if (error) throw error
+      toast.success('Subscription added to your list')
+      await fetchSubscriptions()
+    } catch (err) {
+      toast.error('Failed to approve')
+      throw err
+    }
+  }
+
+  const dismissDetection = async (id: string) => {
+    try {
+      const { error } = await supabase.from('subscriptions').delete().eq('id', id)
+      if (error) throw error
+      toast.success('Detection dismissed')
+      await fetchSubscriptions()
+    } catch (err) {
+      toast.error('Failed to dismiss')
+      throw err
+    }
+  }
+
   return {
     subscriptions,
     loading,
@@ -180,5 +207,7 @@ export function useSubscriptions() {
     cancelSubscription,
     pauseSubscription,
     reactivateSubscription,
+    approveDetection,
+    dismissDetection,
   }
 }

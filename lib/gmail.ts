@@ -3,6 +3,8 @@
  * Handles OAuth flow and email scanning for subscription detection
  */
 
+import { computeConfidenceScore } from './confidence'
+
 export const GMAIL_SCOPES = [
   'https://www.googleapis.com/auth/gmail.readonly',
   'https://www.googleapis.com/auth/userinfo.email',
@@ -63,7 +65,7 @@ export async function refreshAccessToken(refreshToken: string): Promise<string> 
 }
 
 // Known subscription senders and their service names
-const SUBSCRIPTION_PATTERNS: { sender: string; name: string; logoUrl: string }[] = [
+export const SUBSCRIPTION_PATTERNS: { sender: string; name: string; logoUrl: string }[] = [
   // Streaming & Entertainment
   { sender: 'netflix.com', name: 'Netflix', logoUrl: 'https://logo.clearbit.com/netflix.com' },
   { sender: 'spotify.com', name: 'Spotify', logoUrl: 'https://logo.clearbit.com/spotify.com' },
@@ -182,6 +184,12 @@ export interface DetectedSubscription {
   is_recurring: boolean
   /** Next billing / renewal date extracted directly from the email (YYYY-MM-DD), or null */
   next_billing_date: string | null
+  /** 0–95 integer confidence percentage */
+  confidence_score: number
+  /** Pipe-separated human-readable signal labels for UI and DB storage */
+  detection_reason: string
+  /** What the scan pipeline should do with this detection */
+  confidence_suggestion: 'auto' | 'ask' | 'ignore'
   logo_url: string
   email_sender: string
   email_thread_id: string
@@ -340,13 +348,14 @@ export function detectSubscriptionFromEmail(
   subject: string,
   from: string,
   body: string,
-  threadId: string
+  threadId: string,
+  hasPreviousHistory = false
 ): DetectedSubscription | null {
   const lowerSubject = subject.toLowerCase()
   const lowerBody = body.toLowerCase()
   const lowerFrom = from.toLowerCase()
 
-  // Check if this is a billing/receipt email
+  // Check if this is a billing/receipt email — track subject vs body separately
   const billingKeywords = [
     // Core billing words
     'receipt',
@@ -454,9 +463,10 @@ export function detectSubscriptionFromEmail(
     'subscription cancelled',
   ]
 
-  const isBillingEmail = billingKeywords.some(
-    (kw) => lowerSubject.includes(kw) || lowerBody.includes(kw)
-  )
+  // Check if this is a billing/receipt email — track subject vs body separately
+  const billingKwInSubject = billingKeywords.some((kw) => lowerSubject.includes(kw))
+  const billingKwInBody = billingKeywords.some((kw) => lowerBody.includes(kw))
+  const isBillingEmail = billingKwInSubject || billingKwInBody
   if (!isBillingEmail) return null
 
   // Find matching service
@@ -509,12 +519,18 @@ export function detectSubscriptionFromEmail(
   // Detect billing cycle
   const cycleText = lowerSubject + ' ' + lowerBody
   let billing_cycle: 'monthly' | 'yearly' | 'quarterly' | 'weekly' = 'monthly'
+  let billingCycleDetected = false
   if (cycleText.includes('annual') || cycleText.includes('yearly') || cycleText.includes('year plan') || cycleText.includes('/year') || cycleText.includes('per year')) {
     billing_cycle = 'yearly'
+    billingCycleDetected = true
   } else if (cycleText.includes('quarterly') || cycleText.includes('every 3 months') || cycleText.includes('3-month')) {
     billing_cycle = 'quarterly'
+    billingCycleDetected = true
   } else if (cycleText.includes('weekly') || cycleText.includes('per week') || cycleText.includes('/week')) {
     billing_cycle = 'weekly'
+    billingCycleDetected = true
+  } else if (cycleText.includes('monthly') || cycleText.includes('per month') || cycleText.includes('/month') || cycleText.includes('every month')) {
+    billingCycleDetected = true
   }
 
   // Detect one-time vs recurring
@@ -525,6 +541,23 @@ export function detectSubscriptionFromEmail(
   // Try to extract the next billing date directly from the email
   const next_billing_date = extractNextBillingDate(subject + ' ' + body)
 
+  // Detect trial signal
+  const trialSignal = TRIAL_SIGNALS.some((kw) => combinedText.includes(kw))
+
+  // Compute Bayesian-style confidence score
+  const confidence = computeConfidenceScore({
+    senderMatched: true, // only reachable when pattern matched
+    billingKwInSubject,
+    billingKwInBody,
+    recurringSignal: is_recurring,
+    amountDetected: amount > 0,
+    billingCycleDetected,
+    nextDateExtracted: next_billing_date !== null,
+    trialSignal,
+    oneTimeSignal: is_one_time,
+    hasPreviousHistory,
+  })
+
   return {
     name: pattern.name,
     amount,
@@ -533,6 +566,9 @@ export function detectSubscriptionFromEmail(
     is_one_time,
     is_recurring,
     next_billing_date,
+    confidence_score: confidence.score,
+    detection_reason: confidence.reason,
+    confidence_suggestion: confidence.suggestion,
     logo_url: pattern.logoUrl,
     email_sender: from,
     email_thread_id: threadId,
@@ -585,6 +621,23 @@ const PAUSE_KEYWORDS = [
   'temporarily paused',
   'paused your account',
   'billing paused',
+]
+
+// Keywords that indicate a trial is converting to a paid subscription
+const TRIAL_SIGNALS = [
+  'trial ending',
+  'trial ends',
+  'trial expired',
+  'trial is ending',
+  'trial will end',
+  'trial period ending',
+  'your free trial',
+  'trial converts',
+  'trial converting',
+  'after your trial',
+  'end of your trial',
+  'trial to paid',
+  'trial has ended',
 ]
 
 /**

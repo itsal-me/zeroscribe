@@ -30,6 +30,8 @@ export default function SubscriptionsPage() {
         deleteSubscription,
         pauseSubscription,
         reactivateSubscription,
+        approveDetection,
+        dismissDetection,
     } = useSubscriptions();
     const { categories } = useProfile();
     const [modalOpen, setModalOpen] = useState(false);
@@ -43,6 +45,8 @@ export default function SubscriptionsPage() {
 
     const filtered = useMemo(() => {
         return subscriptions.filter((s) => {
+            // Always surface pending_review items regardless of active filter
+            if (s.status === "pending_review") return true;
             const matchesSearch =
                 !search ||
                 s.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -192,6 +196,8 @@ export default function SubscriptionsPage() {
                                 onDelete={deleteSubscription}
                                 onPause={pauseSubscription}
                                 onReactivate={reactivateSubscription}
+                                onApprove={approveDetection}
+                                onDismiss={dismissDetection}
                                 loading={loading}
                             />
                         </div>

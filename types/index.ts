@@ -43,6 +43,8 @@ export interface Subscription {
   source: 'manual' | 'gmail'
   email_thread_id: string | null
   email_sender: string | null
+  confidence_score: number | null
+  detection_reason: string | null
   created_at: string
   updated_at: string
   categories?: Category
@@ -73,7 +75,7 @@ export interface GmailScanLog {
 
 export type BillingCycle = 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly'
 
-export type SubscriptionStatus = 'active' | 'paused' | 'cancelled' | 'trial'
+export type SubscriptionStatus = 'active' | 'paused' | 'cancelled' | 'trial' | 'pending_review'
 
 export type NotificationType =
   | 'renewal_reminder'
