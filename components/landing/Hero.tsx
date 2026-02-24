@@ -8,6 +8,7 @@ import {
     TrendingUp,
     Bell,
     Zap,
+    Shield,
 } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -283,7 +284,7 @@ export function Hero() {
                     <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-accent/30 bg-accent-subtle/50 mb-8">
                         <Sparkles className="w-3 h-3 text-accent" />
                         <span className="text-xs font-medium text-accent">
-                            Gmail auto-detection is live
+                            Not just Apple &amp; Google — all your subscriptions
                         </span>
                     </div>
                 </motion.div>
@@ -303,9 +304,10 @@ export function Hero() {
                     variants={itemVariants}
                     className="text-base sm:text-lg text-muted-foreground max-w-xl leading-relaxed mb-10 text-balance"
                 >
-                    paySnap scans your Gmail to automatically detect recurring
-                    charges — or add them manually. Know what you pay, when it
-                    renews, and never get surprised again.
+                    Know what you&apos;re paying, and stop wasting money.
+                    paySnap automatically detects all your recurring charges from
+                    Gmail — or you can add them manually. Budget-aware analytics,
+                    renewal alerts, and full control in one place.
                 </motion.p>
 
                 {/* CTAs */}
@@ -340,12 +342,34 @@ export function Hero() {
                     <div className="hidden sm:block h-3 w-px bg-border" />
                     <div className="flex items-center gap-1.5">
                         <Bell className="w-3.5 h-3.5 shrink-0" />
-                        <span>Renewal alerts</span>
+                        <span>Never miss a renewal again</span>
                     </div>
                     <div className="hidden sm:block h-3 w-px bg-border" />
                     <div className="flex items-center gap-1.5">
                         <TrendingUp className="w-3.5 h-3.5 shrink-0" />
-                        <span>Spending insights</span>
+                        <span>Budget-aware analytics</span>
+                    </div>
+                    <div className="hidden sm:block h-3 w-px bg-border" />
+                    <div className="flex items-center gap-1.5">
+                        <Zap className="w-3.5 h-3.5 shrink-0" />
+                        <span>Works on any device, anywhere</span>
+                    </div>
+                </motion.div>
+
+                {/* Privacy trust strip */}
+                <motion.div
+                    variants={itemVariants}
+                    className="w-full max-w-2xl mb-8 sm:mb-12"
+                >
+                    <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-6 px-5 py-3 rounded-2xl border border-border bg-surface/60 backdrop-blur-sm text-[11px] text-muted-foreground">
+                        <div className="flex items-center gap-1.5 font-medium">
+                            <Shield className="w-3.5 h-3.5 text-success shrink-0" />
+                            <span className="text-foreground">We never store your emails</span>
+                        </div>
+                        <div className="hidden sm:block h-3 w-px bg-border" />
+                        <span>We only extract subscription metadata</span>
+                        <div className="hidden sm:block h-3 w-px bg-border" />
+                        <span>We do not access OTPs or personal messages</span>
                     </div>
                 </motion.div>
 

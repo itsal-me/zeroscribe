@@ -9,7 +9,7 @@ const steps = [
         icon: LinkIcon,
         title: "Connect Gmail",
         description:
-            "Sign in with Google and grant read-only Gmail access. We only ever read — never send or modify anything.",
+            "Grant read-only access in seconds. We never store your emails, never read OTPs, and never touch personal messages — only subscription metadata is extracted.",
         detail: "Takes about 30 seconds",
     },
     {
@@ -17,8 +17,8 @@ const steps = [
         icon: ScanLine,
         title: "Auto-detection runs",
         description:
-            "Our scanner parses the last 90 days of billing emails, extracts service names, amounts, and billing cycles.",
-        detail: "Scans 100+ receipts in seconds",
+            "Our scanner parses up to 365 days of billing emails and surfaces every subscription — not just Apple or Google, but every service you pay for.",
+        detail: "Scans 200+ receipts in seconds",
     },
     {
         number: "03",

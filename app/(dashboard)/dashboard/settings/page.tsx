@@ -211,9 +211,27 @@ export default function SettingsPage() {
                                     <p className="text-xs text-muted-foreground leading-relaxed">
                                         Connect Gmail to automatically detect
                                         subscriptions from receipts and billing
-                                        emails. We only request read-only
-                                        access.
+                                        emails — not just Apple or Google, but
+                                        every service you pay for. We only
+                                        request read-only access.
                                     </p>
+                                </div>
+
+                                {/* Privacy trust notice */}
+                                <div className="rounded-lg border border-success/25 bg-success-subtle/30 px-4 py-3 space-y-1.5">
+                                    <p className="text-[11px] font-semibold text-success">Your privacy is protected</p>
+                                    <ul className="space-y-1">
+                                        {[
+                                            "We never store your emails.",
+                                            "We only extract subscription metadata.",
+                                            "We do not access OTPs or personal messages.",
+                                        ].map((line) => (
+                                            <li key={line} className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                                                <span className="w-1 h-1 rounded-full bg-success/60 shrink-0" />
+                                                {line}
+                                            </li>
+                                        ))}
+                                    </ul>
                                 </div>
 
                                 <Button

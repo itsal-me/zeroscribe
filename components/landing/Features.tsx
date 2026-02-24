@@ -17,7 +17,7 @@ const features = [
         icon: Mail,
         title: "Gmail auto-detection",
         description:
-            "Connect your Gmail and let paySnap scan receipts, invoices, and billing emails to automatically surface subscriptions you may have forgotten.",
+            "Connect Gmail and paySnap scans receipts, invoices, and billing emails across every service — not just Apple or Google. We never store your emails or access OTPs. Only subscription metadata is extracted.",
         accent: "text-blue-400",
         bg: "bg-blue-500/10",
     },
@@ -33,7 +33,7 @@ const features = [
         icon: Bell,
         title: "Smart reminders",
         description:
-            "Get notified days before a renewal hits. Configure how early you want alerts so you can cancel or budget accordingly.",
+            "Never miss a renewal or trial end again. Get notified days before a charge hits — configure how early you want the alert so you can cancel or budget accordingly.",
         accent: "text-amber-400",
         bg: "bg-amber-500/10",
     },
@@ -41,7 +41,7 @@ const features = [
         icon: BarChart3,
         title: "Spending analytics",
         description:
-            "Visualize your monthly and annual subscription spend with beautiful charts. Break down costs by category and spot where your money goes.",
+            "Budget-aware subscription analytics. Visualize monthly and annual spend, break down by category, and finally know where your money is going — so you can cut what you don't use.",
         accent: "text-emerald-400",
         bg: "bg-emerald-500/10",
     },
@@ -73,7 +73,7 @@ const features = [
         icon: Globe,
         title: "Any currency",
         description:
-            "Track subscriptions in USD, EUR, GBP, and more. paySnap normalizes everything for clear reporting.",
+            "Works no matter where you live or what device you use. Track subscriptions in USD, EUR, GBP, INR, and more — paySnap normalizes everything for clear, consistent reporting.",
         accent: "text-cyan-400",
         bg: "bg-cyan-500/10",
     },
@@ -109,13 +109,13 @@ export function Features() {
                         Features
                     </p>
                     <h2 className="text-3xl sm:text-4xl font-bold tracking-tight mb-4">
-                        Everything you need to
+                        Not just Apple &amp; Google —
                         <br />
-                        stay in control
+                        all your subscriptions in one place
                     </h2>
                     <p className="text-sm text-muted-foreground max-w-md mx-auto leading-relaxed">
-                        Built for people who want clarity over their recurring
-                        payments — without the complexity.
+                        Know what you&apos;re paying, and stop wasting money.
+                        Built for anyone, on any device, in any currency.
                     </p>
                 </motion.div>
 
