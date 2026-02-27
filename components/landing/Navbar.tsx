@@ -60,6 +60,12 @@ export function Navbar() {
                 <div className="flex items-center gap-2">
                     <ThemeToggle />
                     <Link
+                        href="/demo"
+                        className="hidden md:inline-flex items-center px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground border border-border rounded-lg hover:bg-muted transition-colors"
+                    >
+                        Try Demo
+                    </Link>
+                    <Link
                         href="/login"
                         className="hidden md:inline-flex items-center px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
                     >
@@ -112,6 +118,13 @@ export function Navbar() {
                                     className="px-3 py-2 text-sm text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted transition-colors"
                                 >
                                     Sign in
+                                </Link>
+                                <Link
+                                    href="/demo"
+                                    onClick={() => setMobileOpen(false)}
+                                    className="px-3 py-2 text-sm font-medium text-foreground border border-border rounded-lg text-center hover:bg-muted transition-colors"
+                                >
+                                    Try Demo
                                 </Link>
                                 <Link
                                     href="/login"

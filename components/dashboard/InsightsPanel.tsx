@@ -1,6 +1,12 @@
 "use client";
 
-import { Lightbulb, TrendingDown, Clock, AlertTriangle, Layers } from "lucide-react";
+import {
+    Lightbulb,
+    TrendingDown,
+    Clock,
+    AlertTriangle,
+    Layers,
+} from "lucide-react";
 import { motion } from "framer-motion";
 import { cn, formatCurrency, getMonthlyAmount } from "@/lib/utils";
 import { getDaysUntilRenewal } from "@/lib/utils";
@@ -21,7 +27,13 @@ function buildInsights(subscriptions: Subscription[]): Insight[] {
     const insights: Insight[] = [];
 
     // Streaming / entertainment category spend
-    const streamingKeywords = ["entertainment", "streaming", "video", "music", "media"];
+    const streamingKeywords = [
+        "entertainment",
+        "streaming",
+        "video",
+        "music",
+        "media",
+    ];
     const streamingSubs = active.filter((s) =>
         streamingKeywords.some((kw) =>
             s.categories?.name?.toLowerCase().includes(kw),
@@ -59,7 +71,8 @@ function buildInsights(subscriptions: Subscription[]): Insight[] {
             text: `Trial for "${t.name}" ends in `,
             highlight: `${days} day${days !== 1 ? "s" : ""}`,
         });
-        insights[insights.length - 1].text += `. It will auto-charge ${formatCurrency(t.amount)} unless you cancel.`;
+        insights[insights.length - 1].text +=
+            `. It will auto-charge ${formatCurrency(t.amount)} unless you cancel.`;
     }
 
     // Upcoming charges in next 7 days
@@ -97,7 +110,8 @@ function buildInsights(subscriptions: Subscription[]): Insight[] {
                 text: `Canceling "${most.name}" would save you `,
                 highlight: `${formatCurrency(mostMonthly * 12)}/year`,
             });
-            insights[insights.length - 1].text += `. Worth reviewing if you still use it regularly.`;
+            insights[insights.length - 1].text +=
+                `. Worth reviewing if you still use it regularly.`;
         }
     }
 
@@ -115,7 +129,8 @@ function buildInsights(subscriptions: Subscription[]): Insight[] {
             text: `You have `,
             highlight: `${oldSubs.length} subscriptions`,
         });
-        insights[insights.length - 1].text += ` that have been active for over 6 months. Review them — some may no longer be worth keeping.`;
+        insights[insights.length - 1].text +=
+            ` that have been active for over 6 months. Review them — some may no longer be worth keeping.`;
     }
 
     return insights.slice(0, 4);
@@ -126,13 +141,21 @@ interface InsightsPanelProps {
     className?: string;
 }
 
-export function InsightsPanel({ subscriptions, className }: InsightsPanelProps) {
+export function InsightsPanel({
+    subscriptions,
+    className,
+}: InsightsPanelProps) {
     const insights = buildInsights(subscriptions);
 
     if (insights.length === 0) return null;
 
     return (
-        <div className={cn("bg-surface border border-border rounded-xl p-5", className)}>
+        <div
+            className={cn(
+                "bg-surface border border-border rounded-xl p-5",
+                className,
+            )}
+        >
             <div className="flex items-center gap-2 mb-4">
                 <div className="w-7 h-7 rounded-lg bg-accent-subtle flex items-center justify-center shrink-0">
                     <Lightbulb className="w-3.5 h-3.5 text-accent" />
@@ -149,10 +172,13 @@ export function InsightsPanel({ subscriptions, className }: InsightsPanelProps) 
                 {insights.map((insight, i) => {
                     const Icon = insight.icon;
                     // Build the display text: split on highlight if present
-                    const beforeHighlight = insight.text.split(insight.highlight || "")[0];
+                    const beforeHighlight = insight.text.split(
+                        insight.highlight || "",
+                    )[0];
                     const afterHighlight = insight.highlight
                         ? insight.text.slice(
-                              beforeHighlight.length + (insight.highlight?.length ?? 0),
+                              beforeHighlight.length +
+                                  (insight.highlight?.length ?? 0),
                           )
                         : "";
 
@@ -171,7 +197,10 @@ export function InsightsPanel({ subscriptions, className }: InsightsPanelProps) 
                                 )}
                             >
                                 <Icon
-                                    className={cn("w-3.5 h-3.5", insight.iconColor)}
+                                    className={cn(
+                                        "w-3.5 h-3.5",
+                                        insight.iconColor,
+                                    )}
                                 />
                             </div>
                             <p className="text-xs text-muted-foreground leading-relaxed">

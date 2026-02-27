@@ -296,7 +296,9 @@ export function Hero() {
                 >
                     Stop losing money to
                     <br />
-                    <span className="gradient-text">forgotten subscriptions.</span>
+                    <span className="gradient-text">
+                        forgotten subscriptions.
+                    </span>
                 </motion.h1>
 
                 {/* Subtext */}
@@ -305,7 +307,8 @@ export function Hero() {
                     className="text-base sm:text-lg text-muted-foreground max-w-xl leading-relaxed mb-10 text-balance"
                 >
                     See all your recurring payments in one place —
-                    automatically. Get renewal alerts before you&apos;re charged.
+                    automatically. Get renewal alerts before you&apos;re
+                    charged.
                 </motion.p>
 
                 {/* CTAs */}
@@ -321,12 +324,13 @@ export function Hero() {
                             See My Hidden Subscriptions
                             <ArrowRight className="w-4 h-4" />
                         </Link>
-                        <a
-                            href="#how-it-works"
+                        <Link
+                            href="/demo"
                             className="inline-flex items-center justify-center gap-2 px-6 py-3.5 text-sm font-medium text-foreground bg-surface border border-border rounded-xl hover:bg-muted transition-colors duration-150"
                         >
-                            See how it works
-                        </a>
+                            <Sparkles className="w-3.5 h-3.5 text-accent" />
+                            Try Live Demo
+                        </Link>
                     </div>
                     <p className="text-[11px] text-muted-foreground">
                         Read-only Gmail access. We never send or delete emails.
@@ -372,7 +376,9 @@ export function Hero() {
                             </span>
                         </div>
                         <div className="hidden sm:block h-3 w-px bg-border" />
-                        <span>Read-only access — we never send or delete emails</span>
+                        <span>
+                            Read-only access — we never send or delete emails
+                        </span>
                         <div className="hidden sm:block h-3 w-px bg-border" />
                         <span>Raw email content is never stored</span>
                         <div className="hidden sm:block h-3 w-px bg-border" />

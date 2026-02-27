@@ -115,7 +115,9 @@ export function SpendingChart({
             {/* Monthly spending area chart */}
             <div className="lg:col-span-3 bg-surface border border-border rounded-xl p-5">
                 <div className="mb-5">
-                    <h3 className="text-xs font-semibold">Monthly spend trend</h3>
+                    <h3 className="text-xs font-semibold">
+                        Monthly spend trend
+                    </h3>
                     <p className="text-xs text-muted-foreground mt-0.5">
                         Last 6 months
                     </p>

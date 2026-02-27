@@ -1,11 +1,6 @@
 "use client";
 
-import {
-    DollarSign,
-    CreditCard,
-    Calendar,
-    AlertTriangle,
-} from "lucide-react";
+import { DollarSign, CreditCard, Calendar, AlertTriangle } from "lucide-react";
 import { cn, formatCurrency, getTotalMonthlySpend } from "@/lib/utils";
 import { getDaysUntilRenewal } from "@/lib/utils";
 import type { Subscription } from "@/types";
