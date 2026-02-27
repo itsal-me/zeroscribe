@@ -8,7 +8,24 @@ import {
   refreshAccessToken,
   SUBSCRIPTION_PATTERNS,
 } from '@/lib/gmail'
-import { addMonths, addYears, addWeeks, format } from 'date-fns'
+
+// Default colors per auto-detected category name
+const CATEGORY_COLORS: Record<string, string> = {
+  'Entertainment':    '#E50914',
+  'Productivity':     '#4F46E5',
+  'Cloud':            '#FF9900',
+  'Design':           '#A259FF',
+  'Developer Tools':  '#181717',
+  'Communication':    '#4A154B',
+  'AI Tools':         '#10A37F',
+  'Marketing':        '#F59E0B',
+  'Business':         '#06B6D4',
+  'Security':         '#0094F5',
+  'Education':        '#0A66C2',
+  'Health & Fitness': '#1CBF73',
+  'Gaming':           '#107C10',
+  'Utilities':        '#64748B',
+}
 
 export async function POST() {
   const supabase = await createClient()
@@ -85,6 +102,17 @@ export async function POST() {
       existingSubscriptions?.map((s) => (s.name as string).toLowerCase()) || []
     )
 
+    // Pre-fetch user's existing categories so we can look up / create as needed
+    const { data: userCategories } = await supabase
+      .from('categories')
+      .select('id, name')
+      .eq('user_id', user.id)
+
+    // Build a mutable name→id map; we'll add new categories into this as we create them
+    const categoryMap = new Map<string, string>(
+      (userCategories || []).map((c) => [c.name.toLowerCase(), c.id])
+    )
+
     // ── Pass 1: fetch & analyse all emails ──────────────────────────────────
     // Gmail returns results newest-first, so we process most recent emails first.
     type EmailAnalysis = {
@@ -155,29 +183,44 @@ export async function POST() {
       // Skip one-time charges — they are not recurring subscriptions
       if (detected.is_one_time && !detected.is_recurring) continue
 
+      // STRICT: require an actual renewal date extracted from the email body.
+      // If the email didn't mention a next billing date, we cannot confirm this is
+      // a recurring subscription — treat it as a one-time charge and skip it.
+      if (!detected.next_billing_date) continue
+
       // Skip if an active or pending_review subscription with the same name already exists
       if (existingActiveNames.has(detected.name.toLowerCase())) continue
 
-      // Use the date extracted directly from the email when available;
-      // otherwise compute a best-guess from the detected billing cycle.
-      const now = new Date()
-      let nextBillingDate: string
-      if (detected.next_billing_date) {
-        nextBillingDate = detected.next_billing_date
-      } else if (detected.billing_cycle === 'yearly') {
-        nextBillingDate = format(addYears(now, 1), 'yyyy-MM-dd')
-      } else if (detected.billing_cycle === 'quarterly') {
-        nextBillingDate = format(addMonths(now, 3), 'yyyy-MM-dd')
-      } else if (detected.billing_cycle === 'weekly') {
-        nextBillingDate = format(addWeeks(now, 1), 'yyyy-MM-dd')
+      // ── Auto-assign category ──────────────────────────────────────────────
+      // Look up the category by name (case-insensitive). If not found, create it
+      // with a sensible default color so the user sees it categorised immediately.
+      let categoryId: string | null = null
+      const catKey = detected.category_name.toLowerCase()
+      if (categoryMap.has(catKey)) {
+        categoryId = categoryMap.get(catKey)!
       } else {
-        nextBillingDate = format(addMonths(now, 1), 'yyyy-MM-dd')
+        const color = CATEGORY_COLORS[detected.category_name] ?? '#64748B'
+        const { data: newCat } = await supabase
+          .from('categories')
+          .insert({
+            user_id: user.id,
+            name: detected.category_name,
+            color,
+            icon: null,
+            is_default: false,
+          })
+          .select('id')
+          .single()
+        if (newCat?.id) {
+          categoryMap.set(catKey, newCat.id)
+          categoryId = newCat.id
+        }
       }
 
-      // Determine initial status:
+      // ── Determine initial status ──────────────────────────────────────────
       //   cancelled/paused from statusChange emails take priority
-      //   auto (>=90%) → active immediately
-      //   ask (60-89%) → pending_review (surfaces in UI for user approval)
+      //   auto (>=80%) → active immediately
+      //   ask (45-79%) → pending_review (surfaces in UI for user approval)
       const recordStatus =
         finalStatus !== 'active'
           ? finalStatus
@@ -191,8 +234,9 @@ export async function POST() {
         amount: detected.amount,
         currency: detected.currency,
         billing_cycle: detected.billing_cycle,
-        next_billing_date: nextBillingDate,
+        next_billing_date: detected.next_billing_date,
         status: recordStatus,
+        category_id: categoryId,
         auto_detected: true,
         source: 'gmail',
         email_thread_id: detected.email_thread_id,
