@@ -1,18 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { exchangeCodeForTokens } from '@/lib/gmail'
-
-function getPublicOrigin(request: Request): string {
-  if (process.env.NEXT_PUBLIC_SITE_URL) {
-    return process.env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, '')
-  }
-  const forwardedHost = request.headers.get('x-forwarded-host')
-  if (forwardedHost) {
-    return `https://${forwardedHost}`
-  }
-  const { origin } = new URL(request.url)
-  return origin
-}
+import { getPublicOrigin } from '@/lib/url'
 
 export async function GET(request: Request) {
   const origin = getPublicOrigin(request)
