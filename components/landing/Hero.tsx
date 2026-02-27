@@ -281,10 +281,10 @@ export function Hero() {
             >
                 {/* Badge */}
                 <motion.div variants={itemVariants}>
-                    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-accent/30 bg-accent-subtle/50 mb-8">
-                        <Sparkles className="w-3 h-3 text-accent" />
-                        <span className="text-xs font-medium text-accent">
-                            Not just Apple &amp; Google — all your subscriptions
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-danger/30 bg-danger-subtle/50 mb-8">
+                        <Sparkles className="w-3 h-3 text-danger" />
+                        <span className="text-xs font-medium text-danger">
+                            The average user finds 1–3 forgotten subscriptions
                         </span>
                     </div>
                 </motion.div>
@@ -294,9 +294,9 @@ export function Hero() {
                     variants={itemVariants}
                     className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight leading-[1.05] text-balance mb-5 sm:mb-6"
                 >
-                    Every subscription,
+                    Stop losing money to
                     <br />
-                    <span className="gradient-text">finally organized.</span>
+                    <span className="gradient-text">forgotten subscriptions.</span>
                 </motion.h1>
 
                 {/* Subtext */}
@@ -304,30 +304,33 @@ export function Hero() {
                     variants={itemVariants}
                     className="text-base sm:text-lg text-muted-foreground max-w-xl leading-relaxed mb-10 text-balance"
                 >
-                    Know what you&apos;re paying, and stop wasting money.
-                    paySnap automatically detects all your recurring charges
-                    from Gmail — or you can add them manually. Budget-aware
-                    analytics, renewal alerts, and full control in one place.
+                    See all your recurring payments in one place —
+                    automatically. Get renewal alerts before you&apos;re charged.
                 </motion.p>
 
                 {/* CTAs */}
                 <motion.div
                     variants={itemVariants}
-                    className="flex flex-col sm:flex-row gap-3 mb-8 sm:mb-16 w-full sm:w-auto"
+                    className="flex flex-col items-center gap-3 mb-8 sm:mb-16 w-full sm:w-auto"
                 >
-                    <Link
-                        href="/login"
-                        className="inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-semibold bg-accent text-accent-foreground rounded-xl hover:opacity-90 transition-all duration-150 shadow-lg shadow-accent/20 glow-sm"
-                    >
-                        Start for free
-                        <ArrowRight className="w-4 h-4" />
-                    </Link>
-                    <a
-                        href="#how-it-works"
-                        className="inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-medium text-foreground bg-surface border border-border rounded-xl hover:bg-muted transition-colors duration-150"
-                    >
-                        See how it works
-                    </a>
+                    <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                        <Link
+                            href="/login"
+                            className="inline-flex items-center justify-center gap-2 px-7 py-3.5 text-sm font-semibold bg-accent text-accent-foreground rounded-xl hover:opacity-90 transition-all duration-150 shadow-lg shadow-accent/20 glow-sm"
+                        >
+                            See My Hidden Subscriptions
+                            <ArrowRight className="w-4 h-4" />
+                        </Link>
+                        <a
+                            href="#how-it-works"
+                            className="inline-flex items-center justify-center gap-2 px-6 py-3.5 text-sm font-medium text-foreground bg-surface border border-border rounded-xl hover:bg-muted transition-colors duration-150"
+                        >
+                            See how it works
+                        </a>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                        Read-only Gmail access. We never send or delete emails.
+                    </p>
                 </motion.div>
 
                 {/* Social proof */}
@@ -342,17 +345,17 @@ export function Hero() {
                     <div className="hidden sm:block h-3 w-px bg-border" />
                     <div className="flex items-center gap-1.5">
                         <Bell className="w-3.5 h-3.5 shrink-0" />
-                        <span>Never miss a renewal again</span>
+                        <span>Renewal alerts before you&apos;re charged</span>
                     </div>
                     <div className="hidden sm:block h-3 w-px bg-border" />
                     <div className="flex items-center gap-1.5">
                         <TrendingUp className="w-3.5 h-3.5 shrink-0" />
-                        <span>Budget-aware analytics</span>
+                        <span>See your real monthly cost instantly</span>
                     </div>
                     <div className="hidden sm:block h-3 w-px bg-border" />
                     <div className="flex items-center gap-1.5">
                         <Zap className="w-3.5 h-3.5 shrink-0" />
-                        <span>Works on any device, anywhere</span>
+                        <span>Auto-detects from Gmail in seconds</span>
                     </div>
                 </motion.div>
 
@@ -361,17 +364,19 @@ export function Hero() {
                     variants={itemVariants}
                     className="w-full max-w-2xl mb-8 sm:mb-12"
                 >
-                    <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-6 px-5 py-3 rounded-2xl border border-border bg-surface/60 backdrop-blur-sm text-[11px] text-muted-foreground">
+                    <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-6 px-5 py-3 rounded-2xl border border-success/20 bg-success-subtle/30 backdrop-blur-sm text-[11px] text-muted-foreground">
                         <div className="flex items-center gap-1.5 font-medium">
                             <Shield className="w-3.5 h-3.5 text-success shrink-0" />
-                            <span className="text-foreground">
-                                We never store your emails
+                            <span className="text-foreground font-semibold">
+                                Your privacy comes first
                             </span>
                         </div>
                         <div className="hidden sm:block h-3 w-px bg-border" />
-                        <span>We only extract subscription metadata</span>
+                        <span>Read-only access — we never send or delete emails</span>
                         <div className="hidden sm:block h-3 w-px bg-border" />
-                        <span>We do not access OTPs or personal messages</span>
+                        <span>Raw email content is never stored</span>
+                        <div className="hidden sm:block h-3 w-px bg-border" />
+                        <span>Disconnect anytime from Settings</span>
                     </div>
                 </motion.div>
 

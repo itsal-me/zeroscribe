@@ -9,24 +9,24 @@ const steps = [
         icon: LinkIcon,
         title: "Connect Gmail",
         description:
-            "Grant read-only access in seconds. We never store your emails, never read OTPs, and never touch personal messages — only subscription metadata is extracted.",
-        detail: "Takes about 30 seconds",
+            "Grant read-only access in seconds — no password shared, no emails stored. We use Google's official OAuth. The whole process takes under 30 seconds.",
+        detail: "Read-only access. 30 seconds.",
     },
     {
         number: "02",
         icon: ScanLine,
-        title: "Auto-detection runs",
+        title: "We detect recurring payments",
         description:
-            "Our scanner parses up to 365 days of billing emails and surfaces every subscription — not just Apple or Google, but every service you pay for.",
-        detail: "Scans 200+ receipts in seconds",
+            "Our scanner finds billing receipts, renewal notices, and subscription emails across every service you pay for — not just Apple or Google. It surfaces what's been quietly charging you.",
+        detail: "Scans up to 200 receipts instantly",
     },
     {
         number: "03",
         icon: LayoutDashboard,
-        title: "Manage everything",
+        title: "See your total instantly",
         description:
-            "Review detected subscriptions, add missing ones manually, set reminders, and track spending over time.",
-        detail: "Full control, always",
+            "Your monthly cost, annual forecast, upcoming renewals, and trials ending soon — all visible in one clear dashboard the moment your scan completes.",
+        detail: "Immediate financial clarity",
     },
 ];
 
@@ -49,11 +49,11 @@ export function HowItWorks() {
                         How it works
                     </p>
                     <h2 className="text-3xl sm:text-4xl font-bold tracking-tight mb-4">
-                        Up and running in minutes
+                        Up and running in 3 steps
                     </h2>
                     <p className="text-sm text-muted-foreground max-w-sm mx-auto leading-relaxed">
-                        No manual data entry required. Connect once, and let the
-                        automation do the rest.
+                        No manual data entry required. Connect once and see your
+                        full subscription picture immediately.
                     </p>
                 </motion.div>
 
@@ -112,9 +112,9 @@ export function HowItWorks() {
                 >
                     <a
                         href="/login"
-                        className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold bg-accent text-accent-foreground rounded-xl hover:opacity-90 transition-opacity shadow-lg shadow-accent/20"
+                        className="inline-flex items-center gap-2 px-7 py-3.5 text-sm font-semibold bg-accent text-accent-foreground rounded-xl hover:opacity-90 transition-opacity shadow-lg shadow-accent/20"
                     >
-                        Try it now — it&apos;s free
+                        See My Hidden Subscriptions
                     </a>
                 </motion.div>
             </div>

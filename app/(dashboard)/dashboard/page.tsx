@@ -6,6 +6,7 @@ import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { StatsGrid } from "@/components/dashboard/StatsGrid";
 import { SubscriptionsList } from "@/components/dashboard/SubscriptionsList";
 import { SpendingChart } from "@/components/dashboard/SpendingChart";
+import { InsightsPanel } from "@/components/dashboard/InsightsPanel";
 import { AddSubscriptionModal } from "@/components/dashboard/AddSubscriptionModal";
 import { Button } from "@/components/ui/Button";
 import { useSubscriptions } from "@/hooks/useSubscriptions";
@@ -111,6 +112,9 @@ export default function DashboardPage() {
                     {/* Stats */}
                     <StatsGrid subscriptions={subscriptions} />
 
+                    {/* Smart Insights */}
+                    <InsightsPanel subscriptions={subscriptions} />
+
                     {/* Charts */}
                     <SpendingChart subscriptions={subscriptions} />
 
@@ -122,7 +126,7 @@ export default function DashboardPage() {
                                     Upcoming renewals
                                 </h2>
                                 <p className="text-[10px] text-muted-foreground mt-0.5">
-                                    Next 30 days
+                                    Active &amp; trial — next 30 days
                                 </p>
                             </div>
                             <a

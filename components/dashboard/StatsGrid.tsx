@@ -1,8 +1,6 @@
 "use client";
 
 import {
-    TrendingDown,
-    TrendingUp,
     DollarSign,
     CreditCard,
     Calendar,
@@ -31,33 +29,29 @@ export function StatsGrid({ subscriptions }: StatsGridProps) {
             (s.status === "active" || s.status === "trial")
         );
     }).length;
-    const cancelled = subscriptions.filter(
-        (s) => s.status === "cancelled",
-    ).length;
-
     const stats = [
         {
-            label: "Monthly spend",
+            label: "Monthly Total",
             value: formatCurrency(monthlyTotal),
-            subValue: `${formatCurrency(annualTotal)}/yr`,
+            subValue: `${formatCurrency(annualTotal)} projected/yr`,
             icon: DollarSign,
             iconBg: "bg-accent-subtle",
             iconColor: "text-accent",
             trend: null,
         },
         {
-            label: "Active subscriptions",
+            label: "Active Subscriptions",
             value: active.length.toString(),
-            subValue: `${cancelled} cancelled`,
+            subValue: `${active.length} currently detected`,
             icon: CreditCard,
             iconBg: "bg-success-subtle",
             iconColor: "text-success",
             trend: null,
         },
         {
-            label: "Renewing soon",
+            label: "Upcoming Charges",
             value: upcomingRenewals.toString(),
-            subValue: "within 7 days",
+            subValue: "renewals in next 7 days",
             icon: Calendar,
             iconBg: upcomingRenewals > 0 ? "bg-warning-subtle" : "bg-muted",
             iconColor:
@@ -73,7 +67,7 @@ export function StatsGrid({ subscriptions }: StatsGridProps) {
                         s.status === "active",
                 )
                 .length.toString(),
-            subValue: "payments overdue",
+            subValue: "payments past due",
             icon: AlertTriangle,
             iconBg: "bg-danger-subtle",
             iconColor: "text-danger",
