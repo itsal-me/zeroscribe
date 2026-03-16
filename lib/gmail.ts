@@ -3,8 +3,6 @@
  * Handles OAuth flow and email scanning for subscription detection
  */
 
-import { computeConfidenceScore } from './confidence'
-
 export const GMAIL_SCOPES = [
   'https://www.googleapis.com/auth/gmail.readonly',
   'https://www.googleapis.com/auth/userinfo.email',
@@ -188,12 +186,10 @@ export interface DetectedSubscription {
   next_billing_date: string | null
   /** Auto-detected category name based on sender domain */
   category_name: string
-  /** 0–95 integer confidence percentage */
-  confidence_score: number
   /** Pipe-separated human-readable signal labels for UI and DB storage */
   detection_reason: string
-  /** What the scan pipeline should do with this detection */
-  confidence_suggestion: 'auto' | 'ask' | 'ignore'
+  /** Whether the detection should be reviewed by the user before activation */
+  review_required: boolean
   logo_url: string
   email_sender: string
   email_thread_id: string
@@ -345,6 +341,44 @@ function extractNextBillingDate(text: string): string | null {
       if (parsed && new Date(parsed) >= threshold) return parsed
     }
   }
+  return null
+}
+
+function addBillingCycle(date: string, billingCycle: DetectedSubscription['billing_cycle']): string | null {
+  const base = new Date(`${date}T00:00:00`)
+  if (isNaN(base.getTime())) return null
+
+  const next = new Date(base)
+  if (billingCycle === 'weekly') {
+    next.setDate(next.getDate() + 7)
+  } else if (billingCycle === 'monthly') {
+    next.setMonth(next.getMonth() + 1)
+  } else if (billingCycle === 'quarterly') {
+    next.setMonth(next.getMonth() + 3)
+  } else if (billingCycle === 'yearly') {
+    next.setFullYear(next.getFullYear() + 1)
+  }
+
+  return toISODate(next) || null
+}
+
+function extractBillingAnchorDate(text: string): string | null {
+  const dateChunk = '([A-Za-z]+ \\d{1,2},?\\s*\\d{4}|\\d{4}-\\d{2}-\\d{2}|\\d{1,2}[\\/\\-]\\d{1,2}[\\/\\-]\\d{4})'
+  const patterns: RegExp[] = [
+    new RegExp(`(?:charged|billed|paid)\\s+on\\s*[:\\-]?\\s*${dateChunk}`, 'i'),
+    new RegExp(`payment\\s+(?:date|received)\\s*[:\\-]?\\s*${dateChunk}`, 'i'),
+    new RegExp(`invoice\\s+date\\s*[:\\-]?\\s*${dateChunk}`, 'i'),
+    new RegExp(`order\\s+date\\s*[:\\-]?\\s*${dateChunk}`, 'i'),
+    new RegExp(`receipt\\s+date\\s*[:\\-]?\\s*${dateChunk}`, 'i'),
+  ]
+
+  for (const pat of patterns) {
+    const match = text.match(pat)
+    if (match?.[1]) {
+      return parseDateToken(match[1])
+    }
+  }
+
   return null
 }
 
@@ -543,24 +577,37 @@ export function detectSubscriptionFromEmail(
   const is_recurring = RECURRING_SIGNALS.some((kw) => combinedText.includes(kw))
 
   // Try to extract the next billing date directly from the email
-  const next_billing_date = extractNextBillingDate(subject + ' ' + body)
+  const explicitNextBillingDate = extractNextBillingDate(subject + ' ' + body)
 
   // Detect trial signal
   const trialSignal = TRIAL_SIGNALS.some((kw) => combinedText.includes(kw))
 
-  // Compute Bayesian-style confidence score
-  const confidence = computeConfidenceScore({
-    senderMatched: true, // only reachable when pattern matched
-    billingKwInSubject,
-    billingKwInBody,
-    recurringSignal: is_recurring,
-    amountDetected: amount > 0,
-    billingCycleDetected,
-    nextDateExtracted: next_billing_date !== null,
-    trialSignal,
-    oneTimeSignal: is_one_time,
-    hasPreviousHistory,
-  })
+  let next_billing_date = explicitNextBillingDate
+  const billingAnchorDate = extractBillingAnchorDate(subject + ' ' + body)
+
+  if (!next_billing_date && billingAnchorDate && (is_recurring || billingCycleDetected || trialSignal)) {
+    next_billing_date = addBillingCycle(billingAnchorDate, billing_cycle)
+  }
+
+  const reasons: string[] = ['SENDER_MATCH', 'AMOUNT_DETECTED']
+  if (billingKwInSubject) reasons.push('BILLING_KEYWORD_SUBJECT')
+  if (billingKwInBody) reasons.push('BILLING_KEYWORD_BODY')
+  if (billingCycleDetected) reasons.push('BILLING_CYCLE_EXPLICIT')
+  if (is_recurring) reasons.push('RECURRING_SIGNAL')
+  if (trialSignal) reasons.push('TRIAL_SIGNAL')
+  if (explicitNextBillingDate) reasons.push('NEXT_BILLING_DATE_EXTRACTED')
+  if (!explicitNextBillingDate && next_billing_date && billingAnchorDate) {
+    reasons.push('NEXT_BILLING_DATE_ESTIMATED')
+  }
+  if (hasPreviousHistory) reasons.push('PREVIOUS_HISTORY')
+  if (is_one_time) reasons.push('ONE_TIME_SIGNAL')
+
+  const review_required =
+    !is_recurring ||
+    !billingCycleDetected ||
+    !next_billing_date ||
+    !!trialSignal ||
+    !!is_one_time
 
   return {
     name: pattern.name,
@@ -571,9 +618,8 @@ export function detectSubscriptionFromEmail(
     is_recurring,
     next_billing_date,
     category_name: pattern.category,
-    confidence_score: confidence.score,
-    detection_reason: confidence.reason,
-    confidence_suggestion: confidence.suggestion,
+    detection_reason: reasons.join(' | '),
+    review_required,
     logo_url: pattern.logoUrl,
     email_sender: from,
     email_thread_id: threadId,

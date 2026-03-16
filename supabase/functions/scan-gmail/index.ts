@@ -26,6 +26,137 @@ const SUBSCRIPTION_PATTERNS = [
   { sender: 'google.com', name: 'Google One', logoUrl: 'https://logo.clearbit.com/google.com' },
 ]
 
+const ONE_TIME_KEYWORDS = [
+  'one-time purchase',
+  'one time purchase',
+  'one-time payment',
+  'one time payment',
+  'single payment',
+  'single charge',
+  'lifetime license',
+  'lifetime access',
+  'not a subscription',
+  'non-recurring',
+  'nonrecurring',
+]
+
+const RECURRING_SIGNALS = [
+  'auto-renew',
+  'auto renew',
+  'will renew',
+  'will be charged',
+  'will be billed',
+  'recurring payment',
+  'recurring billing',
+  'next billing date',
+  'next payment date',
+  'next renewal',
+  'billed every',
+  'charged every',
+  'subscription renewed',
+]
+
+const TRIAL_SIGNALS = [
+  'trial ending',
+  'trial ends',
+  'trial expired',
+  'your free trial',
+  'trial has ended',
+]
+
+const MONTH_MAP: Record<string, number> = {
+  january: 0, jan: 0,
+  february: 1, feb: 1,
+  march: 2, mar: 2,
+  april: 3, apr: 3,
+  may: 4,
+  june: 5, jun: 5,
+  july: 6, jul: 6,
+  august: 7, aug: 7,
+  september: 8, sep: 8, sept: 8,
+  october: 9, oct: 9,
+  november: 10, nov: 10,
+  december: 11, dec: 11,
+}
+
+function toISODate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+function parseDateToken(raw: string): string | null {
+  const s = raw.trim().replace(/,/g, '').replace(/\s+/g, ' ')
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    const d = new Date(`${s}T00:00:00`)
+    return isNaN(d.getTime()) ? null : toISODate(d)
+  }
+
+  const m1 = s.match(/^([A-Za-z]+)\s+(\d{1,2})\s+(\d{4})$/)
+  if (m1) {
+    const mon = MONTH_MAP[m1[1].toLowerCase()]
+    if (mon !== undefined) return toISODate(new Date(+m1[3], mon, +m1[2]))
+  }
+
+  const m2 = s.match(/^(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})$/)
+  if (m2) {
+    const mon = MONTH_MAP[m2[2].toLowerCase()]
+    if (mon !== undefined) return toISODate(new Date(+m2[3], mon, +m2[1]))
+  }
+
+  const m3 = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/)
+  if (m3) {
+    const d = new Date(+m3[3], +m3[1] - 1, +m3[2])
+    return isNaN(d.getTime()) ? null : toISODate(d)
+  }
+
+  return null
+}
+
+function addBillingCycle(date: string, billingCycle: 'monthly' | 'yearly' | 'quarterly' | 'weekly'): string | null {
+  const base = new Date(`${date}T00:00:00`)
+  if (isNaN(base.getTime())) return null
+
+  const next = new Date(base)
+  if (billingCycle === 'weekly') next.setDate(next.getDate() + 7)
+  if (billingCycle === 'monthly') next.setMonth(next.getMonth() + 1)
+  if (billingCycle === 'quarterly') next.setMonth(next.getMonth() + 3)
+  if (billingCycle === 'yearly') next.setFullYear(next.getFullYear() + 1)
+  return toISODate(next)
+}
+
+function extractNextBillingDate(text: string): string | null {
+  const dateChunk = '([A-Za-z]+ \\d{1,2},?\\s*\\d{4}|\\d{4}-\\d{2}-\\d{2}|\\d{1,2}[\\/\\-]\\d{1,2}[\\/\\-]\\d{4})'
+  const patterns = [
+    new RegExp(`next\\s+billing\\s+(?:date|on)\\s*[:\\-]?\\s*${dateChunk}`, 'i'),
+    new RegExp(`next\\s+payment\\s+(?:date|on|due)?\\s*[:\\-]?\\s*${dateChunk}`, 'i'),
+    new RegExp(`renew(?:al|s)?\\s+on\\s*[:\\-]?\\s*${dateChunk}`, 'i'),
+    new RegExp(`will\\s+be\\s+(?:charged|billed)\\s+on\\s*[:\\-]?\\s*${dateChunk}`, 'i'),
+  ]
+
+  for (const pattern of patterns) {
+    const match = text.match(pattern)
+    if (match?.[1]) return parseDateToken(match[1])
+  }
+
+  return null
+}
+
+function extractBillingAnchorDate(text: string): string | null {
+  const dateChunk = '([A-Za-z]+ \\d{1,2},?\\s*\\d{4}|\\d{4}-\\d{2}-\\d{2}|\\d{1,2}[\\/\\-]\\d{1,2}[\\/\\-]\\d{4})'
+  const patterns = [
+    new RegExp(`(?:charged|billed|paid)\\s+on\\s*[:\\-]?\\s*${dateChunk}`, 'i'),
+    new RegExp(`payment\\s+(?:date|received)\\s*[:\\-]?\\s*${dateChunk}`, 'i'),
+    new RegExp(`invoice\\s+date\\s*[:\\-]?\\s*${dateChunk}`, 'i'),
+  ]
+
+  for (const pattern of patterns) {
+    const match = text.match(pattern)
+    if (match?.[1]) return parseDateToken(match[1])
+  }
+
+  return null
+}
+
 async function refreshToken(refreshToken: string): Promise<string> {
   const resp = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
@@ -55,15 +186,56 @@ function detectSubscription(subject: string, from: string, body: string, threadI
   const amount = parseFloat(amountMatch[1])
   if (amount <= 0) return null
 
-  let billing_cycle = 'monthly'
+  let billing_cycle: 'monthly' | 'yearly' | 'quarterly' | 'weekly' = 'monthly'
+  let billingCycleDetected = false
   if (lower.includes('annual') || lower.includes('yearly')) billing_cycle = 'yearly'
   else if (lower.includes('quarterly')) billing_cycle = 'quarterly'
+  else if (lower.includes('weekly')) billing_cycle = 'weekly'
+
+  if (
+    lower.includes('annual') ||
+    lower.includes('yearly') ||
+    lower.includes('quarterly') ||
+    lower.includes('weekly') ||
+    lower.includes('monthly') ||
+    lower.includes('per month') ||
+    lower.includes('per year') ||
+    lower.includes('/month') ||
+    lower.includes('/year')
+  ) {
+    billingCycleDetected = true
+  }
+
+  const isOneTime = ONE_TIME_KEYWORDS.some((kw) => lower.includes(kw))
+  const isRecurring = RECURRING_SIGNALS.some((kw) => lower.includes(kw))
+  const hasTrialSignal = TRIAL_SIGNALS.some((kw) => lower.includes(kw))
+  const explicitNextBillingDate = extractNextBillingDate(subject + ' ' + body)
+  const billingAnchorDate = extractBillingAnchorDate(subject + ' ' + body)
+  const nextBillingDate = explicitNextBillingDate ||
+    (billingAnchorDate && (isRecurring || billingCycleDetected || hasTrialSignal)
+      ? addBillingCycle(billingAnchorDate, billing_cycle)
+      : null)
+
+  if (isOneTime && !isRecurring) return null
+  if (!nextBillingDate) return null
+
+  const reasons = ['SENDER_MATCH', 'AMOUNT_DETECTED']
+  if (billingCycleDetected) reasons.push('BILLING_CYCLE_EXPLICIT')
+  if (isRecurring) reasons.push('RECURRING_SIGNAL')
+  if (hasTrialSignal) reasons.push('TRIAL_SIGNAL')
+  if (explicitNextBillingDate) reasons.push('NEXT_BILLING_DATE_EXTRACTED')
+  if (!explicitNextBillingDate && nextBillingDate && billingAnchorDate) reasons.push('NEXT_BILLING_DATE_ESTIMATED')
+
+  const reviewRequired = !isRecurring || !billingCycleDetected || !explicitNextBillingDate || hasTrialSignal
 
   return {
     name: pattern.name,
     amount,
     currency: 'USD',
     billing_cycle,
+    next_billing_date: nextBillingDate,
+    status: reviewRequired ? 'pending_review' : 'active',
+    detection_reason: reasons.join(' | '),
     logo_url: pattern.logoUrl,
     email_sender: from,
     email_thread_id: threadId,
@@ -115,23 +287,21 @@ async function scanUserGmail(userId: string, accessToken: string) {
       const detected = detectSubscription(subject, from, body.slice(0, 2000), msg.threadId)
 
       if (detected) {
-        const nextDate = new Date()
-        nextDate.setDate(nextDate.getDate() + 30)
-
         await supabase.from('subscriptions').insert({
           user_id: userId,
           ...detected,
-          next_billing_date: nextDate.toISOString().split('T')[0],
-          status: 'active',
           auto_detected: true,
           source: 'gmail',
+          confidence_score: null,
         })
 
         await supabase.from('notifications').insert({
           user_id: userId,
           type: 'payment_detected',
-          title: `${detected.name} detected`,
-          message: `Found a ${detected.name} subscription for $${detected.amount}/${detected.billing_cycle} in your Gmail.`,
+          title: detected.status === 'pending_review' ? `Review: ${detected.name} detected` : `${detected.name} detected`,
+          message: detected.status === 'pending_review'
+            ? `Found a possible ${detected.name} subscription for $${detected.amount}/${detected.billing_cycle}. Review the billing details before confirming it.`
+            : `Found a ${detected.name} subscription for $${detected.amount}/${detected.billing_cycle} in your Gmail.`,
         })
 
         existingIds.add(detected.email_thread_id)

@@ -177,15 +177,11 @@ export async function POST() {
     for (const [, detected] of serviceDetections) {
       const finalStatus = serviceStatus.get(detected.name) ?? 'active'
 
-      // Skip detections the model is not confident enough about
-      if (detected.confidence_suggestion === 'ignore') continue
-
       // Skip one-time charges — they are not recurring subscriptions
       if (detected.is_one_time && !detected.is_recurring) continue
 
-      // STRICT: require an actual renewal date extracted from the email body.
-      // If the email didn't mention a next billing date, we cannot confirm this is
-      // a recurring subscription — treat it as a one-time charge and skip it.
+      // We keep uncertain detections in pending_review, but still require a usable
+      // billing date so the subscription can be listed and reviewed meaningfully.
       if (!detected.next_billing_date) continue
 
       // Skip if an active or pending_review subscription with the same name already exists
@@ -219,14 +215,14 @@ export async function POST() {
 
       // ── Determine initial status ──────────────────────────────────────────
       //   cancelled/paused from statusChange emails take priority
-      //   auto (>=80%) → active immediately
-      //   ask (45-79%) → pending_review (surfaces in UI for user approval)
+      //   fully supported recurring billing signals → active immediately
+      //   partial / estimated billing data → pending_review
       const recordStatus =
         finalStatus !== 'active'
           ? finalStatus
-          : detected.confidence_suggestion === 'auto'
-          ? 'active'
-          : 'pending_review'
+          : detected.review_required
+          ? 'pending_review'
+          : 'active'
 
       await supabase.from('subscriptions').insert({
         user_id: user.id,
@@ -243,7 +239,7 @@ export async function POST() {
         email_sender: detected.email_sender,
         logo_url: detected.logo_url,
         website_url: detected.website_url,
-        confidence_score: detected.confidence_score,
+        confidence_score: null,
         detection_reason: detected.detection_reason,
       })
 
@@ -266,7 +262,7 @@ export async function POST() {
           title: `Review: ${detected.name} detected`,
           message: `We found a possible ${detected.name} subscription (${
             detected.currency === 'USD' ? '$' : detected.currency
-          }${detected.amount}/${detected.billing_cycle}) with ${detected.confidence_score}% confidence. Please review it.`,
+          }${detected.amount}/${detected.billing_cycle}). Please review the billing details before confirming it.`,
         })
         existingActiveNames.add(detected.name.toLowerCase())
       }

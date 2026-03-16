@@ -203,9 +203,14 @@ export default function SettingsPage() {
                                             <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-muted border border-border cursor-not-allowed opacity-60 text-xs font-medium">
                                                 <Lock className="w-3.5 h-3.5 shrink-0" />
                                                 Scan now
-                                                <span className="ml-0.5 px-1.5 py-0.5 rounded bg-accent/10 text-accent text-[10px] font-semibold">Pro</span>
+                                                <span className="ml-0.5 px-1.5 py-0.5 rounded bg-accent/10 text-accent text-[10px] font-semibold">
+                                                    Pro
+                                                </span>
                                             </div>
-                                            <Link href="/upgrade" className="flex items-center gap-1 text-[11px] text-accent hover:underline">
+                                            <Link
+                                                href="/upgrade"
+                                                className="flex items-center gap-1 text-[11px] text-accent hover:underline"
+                                            >
                                                 <Sparkles className="w-3 h-3" />
                                                 Upgrade to unlock scanning
                                             </Link>

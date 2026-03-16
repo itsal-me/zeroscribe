@@ -50,24 +50,6 @@ const statusVariant: Record<
     pending_review: "warning",
 };
 
-// ── Confidence badge ─────────────────────────────────────────────────────────────
-function ConfidenceBadge({ score }: { score: number }) {
-    const isHigh = score >= 80;
-    return (
-        <span
-            title={`Detection confidence: ${score}%`}
-            className={cn(
-                "text-[9px] font-bold px-1.5 py-0.5 rounded-full tabular-nums shrink-0",
-                isHigh
-                    ? "bg-success-subtle text-success"
-                    : "bg-warning-subtle text-warning",
-            )}
-        >
-            {score}%
-        </span>
-    );
-}
-
 // ── Pending review card ──────────────────────────────────────────────────────────
 function PendingReviewCard({
     sub,
@@ -125,12 +107,7 @@ function PendingReviewCard({
 
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-xs font-semibold">
-                            {sub.name}
-                        </span>
-                        {sub.confidence_score != null && (
-                            <ConfidenceBadge score={sub.confidence_score} />
-                        )}
+                        <span className="text-xs font-semibold">{sub.name}</span>
                     </div>
                     <p className="text-[10px] text-muted-foreground mt-0.5">
                         {formatCurrency(sub.amount, sub.currency)}/
@@ -281,9 +258,6 @@ function SubscriptionRow({
                             className="flex items-center gap-1"
                         >
                             <Mail className="w-3 h-3 text-muted-foreground/50 shrink-0" />
-                            {sub.confidence_score != null && (
-                                <ConfidenceBadge score={sub.confidence_score} />
-                            )}
                         </span>
                     )}
                 </div>
@@ -472,8 +446,8 @@ export function SubscriptionsList({
                         </span>
                     </div>
                     <p className="text-[11px] text-muted-foreground px-1">
-                        These were found in your Gmail with 45–79% confidence.
-                        Accept ones that are genuine, dismiss the rest.
+                        These were found in your Gmail, but some billing details
+                        were incomplete or inferred. Accept the genuine ones and dismiss the rest.
                     </p>
                     <AnimatePresence>
                         {pending.map((sub) => (
