@@ -27,6 +27,9 @@ const CATEGORY_COLORS: Record<string, string> = {
   'Utilities':        '#64748B',
 }
 
+const MAX_SCAN_MESSAGES = 80
+const MESSAGE_FETCH_CONCURRENCY = 8
+
 export async function POST() {
   const supabase = await createClient()
   const {
@@ -78,7 +81,7 @@ export async function POST() {
   }
 
   try {
-    const messages = await fetchGmailMessages(accessToken, 200)
+    const messages = await fetchGmailMessages(accessToken, MAX_SCAN_MESSAGES)
     const processedThreadIds = new Set<string>()
 
     // Fetch existing subscriptions for deduplication
@@ -121,29 +124,50 @@ export async function POST() {
     }
     const emailAnalyses: EmailAnalysis[] = []
 
-    for (const msg of messages.slice(0, 150)) {
+    const candidateMessages: typeof messages = []
+
+    for (const msg of messages) {
       if (processedThreadIds.has(msg.threadId) || existingThreadIdSet.has(msg.threadId)) {
         continue
       }
-      try {
-        const email = await fetchGmailMessage(accessToken, msg.id)
-        processedThreadIds.add(msg.threadId)
+      processedThreadIds.add(msg.threadId)
+      candidateMessages.push(msg)
+    }
 
-        // Determine if this service has been seen in historical scans
-        const senderPattern = SUBSCRIPTION_PATTERNS.find(
-          (p) => email.from.toLowerCase().includes(p.sender)
-        )
-        const hasPreviousHistory = senderPattern
-          ? existingServiceNames.has(senderPattern.name.toLowerCase())
-          : false
+    for (let index = 0; index < candidateMessages.length; index += MESSAGE_FETCH_CONCURRENCY) {
+      const batch = candidateMessages.slice(index, index + MESSAGE_FETCH_CONCURRENCY)
+      const analyses = await Promise.all(
+        batch.map(async (msg) => {
+          try {
+            const email = await fetchGmailMessage(accessToken, msg.id)
 
-        emailAnalyses.push({
-          detection: detectSubscriptionFromEmail(email.subject, email.from, email.body, email.threadId, hasPreviousHistory),
-          statusChange: detectStatusFromEmail(email.subject, email.from, email.body),
+            // Determine if this service has been seen in historical scans
+            const senderPattern = SUBSCRIPTION_PATTERNS.find(
+              (p) => email.from.toLowerCase().includes(p.sender)
+            )
+            const hasPreviousHistory = senderPattern
+              ? existingServiceNames.has(senderPattern.name.toLowerCase())
+              : false
+
+            return {
+              detection: detectSubscriptionFromEmail(
+                email.subject,
+                email.from,
+                email.body,
+                email.threadId,
+                hasPreviousHistory
+              ),
+              statusChange: detectStatusFromEmail(email.subject, email.from, email.body),
+            }
+          } catch {
+            return null
+          }
         })
-      } catch {
-        // skip failed messages
-      }
+      )
+
+      emailAnalyses.push(
+        ...analyses.filter((analysis): analysis is EmailAnalysis => analysis !== null)
+      )
     }
 
     // ── Build per-service status & detection maps ────────────────────────────

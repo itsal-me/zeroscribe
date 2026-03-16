@@ -717,17 +717,26 @@ export function detectStatusFromEmail(
 
 export async function fetchGmailMessages(
   accessToken: string,
-  maxResults = 200
+  maxResults = 80
 ): Promise<{ id: string; threadId: string }[]> {
-  const query = encodeURIComponent(
-    '(receipt OR invoice OR billing OR billed OR bill OR subscription OR renewal OR payment OR paid OR charge OR charged OR fee OR debit OR statement OR membership OR overdue OR recurring OR "auto-renew" OR "auto-renewal" OR "order confirmation" OR "payment confirmation" OR "payment received" OR "payment successful" OR "payment processed" OR "amount due" OR "payment due" OR "next payment" OR "will be charged" OR "will renew" OR "successfully charged" OR "has been charged" OR "your subscription" OR "your plan" OR "plan renewed" OR "trial ending" OR "free trial" OR "thank you for subscribing" OR "recurring payment" OR "recurring charge" OR "subscription fee" OR "service fee" OR "license fee" OR "direct debit" OR "thank you for your payment") newer_than:365d'
-  )
-  const response = await fetch(
-    `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${query}&maxResults=${maxResults}`,
-    { headers: { Authorization: `Bearer ${accessToken}` } }
-  )
-  const data = await response.json()
-  return data.messages || []
+  const queries = [
+    'category:purchases (subscription OR renewal OR renewed OR recurring OR membership OR "auto-renew" OR "auto renew" OR "next billing" OR "next payment" OR "will renew" OR "will be charged" OR "billed every" OR "charged every" OR "plan renewed" OR "subscription fee" OR "membership fee" OR "trial ending" OR "free trial") newer_than:400d -in:spam -in:trash',
+    '(subscription OR renewal OR renewed OR recurring OR membership OR "auto-renew" OR "auto renew" OR "next billing" OR "next payment" OR "will renew" OR "will be charged" OR "billed every" OR "charged every" OR "plan renewed" OR "subscription fee" OR "membership fee" OR "trial ending" OR "free trial") newer_than:400d -in:spam -in:trash',
+  ]
+
+  for (const rawQuery of queries) {
+    const query = encodeURIComponent(rawQuery)
+    const response = await fetch(
+      `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${query}&maxResults=${maxResults}`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    )
+    const data = await response.json()
+    if (Array.isArray(data.messages) && data.messages.length > 0) {
+      return data.messages
+    }
+  }
+
+  return []
 }
 
 export async function fetchGmailMessage(

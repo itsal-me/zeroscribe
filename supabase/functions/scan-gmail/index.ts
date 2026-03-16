@@ -79,6 +79,9 @@ const MONTH_MAP: Record<string, number> = {
   december: 11, dec: 11,
 }
 
+const MAX_SCAN_MESSAGES = 80
+const MESSAGE_FETCH_CONCURRENCY = 8
+
 function toISODate(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
@@ -244,15 +247,25 @@ function detectSubscription(subject: string, from: string, body: string, threadI
 }
 
 async function scanUserGmail(userId: string, accessToken: string) {
-  const query = encodeURIComponent(
-    'subject:(receipt OR invoice OR billing OR subscription OR renewal) newer_than:90d'
-  )
-  const msgResp = await fetch(
-    `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${query}&maxResults=50`,
-    { headers: { Authorization: `Bearer ${accessToken}` } }
-  )
-  const msgData = await msgResp.json()
-  const messages: { id: string; threadId: string }[] = msgData.messages || []
+  const queries = [
+    'category:purchases (subscription OR renewal OR renewed OR recurring OR membership OR "auto-renew" OR "auto renew" OR "next billing" OR "next payment" OR "will renew" OR "will be charged" OR "billed every" OR "charged every" OR "plan renewed" OR "subscription fee" OR "membership fee" OR "trial ending" OR "free trial") newer_than:400d -in:spam -in:trash',
+    '(subscription OR renewal OR renewed OR recurring OR membership OR "auto-renew" OR "auto renew" OR "next billing" OR "next payment" OR "will renew" OR "will be charged" OR "billed every" OR "charged every" OR "plan renewed" OR "subscription fee" OR "membership fee" OR "trial ending" OR "free trial") newer_than:400d -in:spam -in:trash',
+  ]
+
+  let messages: { id: string; threadId: string }[] = []
+
+  for (const rawQuery of queries) {
+    const query = encodeURIComponent(rawQuery)
+    const msgResp = await fetch(
+      `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${query}&maxResults=${MAX_SCAN_MESSAGES}`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    )
+    const msgData = await msgResp.json()
+    if (Array.isArray(msgData.messages) && msgData.messages.length > 0) {
+      messages = msgData.messages
+      break
+    }
+  }
 
   // Get existing thread IDs
   const { data: existing } = await supabase
@@ -265,50 +278,62 @@ async function scanUserGmail(userId: string, accessToken: string) {
   const processedThreads = new Set<string>()
   let found = 0
 
+  const candidateMessages: typeof messages = []
+
   for (const msg of messages) {
     if (processedThreads.has(msg.threadId) || existingIds.has(msg.threadId)) continue
+    processedThreads.add(msg.threadId)
+    candidateMessages.push(msg)
+  }
 
-    try {
-      const emailResp = await fetch(
-        `https://gmail.googleapis.com/gmail/v1/users/me/messages/${msg.id}?format=full`,
-        { headers: { Authorization: `Bearer ${accessToken}` } }
-      )
-      const emailData = await emailResp.json()
-      const headers = emailData.payload?.headers || []
-      const subject = headers.find((h: { name: string; value: string }) => h.name === 'Subject')?.value || ''
-      const from = headers.find((h: { name: string; value: string }) => h.name === 'From')?.value || ''
+  for (let index = 0; index < candidateMessages.length; index += MESSAGE_FETCH_CONCURRENCY) {
+    const batch = candidateMessages.slice(index, index + MESSAGE_FETCH_CONCURRENCY)
+    const results = await Promise.all(
+      batch.map(async (msg) => {
+        try {
+          const emailResp = await fetch(
+            `https://gmail.googleapis.com/gmail/v1/users/me/messages/${msg.id}?format=full`,
+            { headers: { Authorization: `Bearer ${accessToken}` } }
+          )
+          const emailData = await emailResp.json()
+          const headers = emailData.payload?.headers || []
+          const subject = headers.find((h: { name: string; value: string }) => h.name === 'Subject')?.value || ''
+          const from = headers.find((h: { name: string; value: string }) => h.name === 'From')?.value || ''
 
-      let body = ''
-      if (emailData.payload?.body?.data) {
-        body = atob(emailData.payload.body.data.replace(/-/g, '+').replace(/_/g, '/'))
-      }
+          let body = ''
+          if (emailData.payload?.body?.data) {
+            body = atob(emailData.payload.body.data.replace(/-/g, '+').replace(/_/g, '/'))
+          }
 
-      processedThreads.add(msg.threadId)
-      const detected = detectSubscription(subject, from, body.slice(0, 2000), msg.threadId)
+          return detectSubscription(subject, from, body.slice(0, 2000), msg.threadId)
+        } catch (_) {
+          return null
+        }
+      })
+    )
 
-      if (detected) {
-        await supabase.from('subscriptions').insert({
-          user_id: userId,
-          ...detected,
-          auto_detected: true,
-          source: 'gmail',
-          confidence_score: null,
-        })
+    for (const detected of results) {
+      if (!detected) continue
 
-        await supabase.from('notifications').insert({
-          user_id: userId,
-          type: 'payment_detected',
-          title: detected.status === 'pending_review' ? `Review: ${detected.name} detected` : `${detected.name} detected`,
-          message: detected.status === 'pending_review'
-            ? `Found a possible ${detected.name} subscription for $${detected.amount}/${detected.billing_cycle}. Review the billing details before confirming it.`
-            : `Found a ${detected.name} subscription for $${detected.amount}/${detected.billing_cycle} in your Gmail.`,
-        })
+      await supabase.from('subscriptions').insert({
+        user_id: userId,
+        ...detected,
+        auto_detected: true,
+        source: 'gmail',
+        confidence_score: null,
+      })
 
-        existingIds.add(detected.email_thread_id)
-        found++
-      }
-    } catch (_) {
-      // Skip failed messages
+      await supabase.from('notifications').insert({
+        user_id: userId,
+        type: 'payment_detected',
+        title: detected.status === 'pending_review' ? `Review: ${detected.name} detected` : `${detected.name} detected`,
+        message: detected.status === 'pending_review'
+          ? `Found a possible ${detected.name} subscription for $${detected.amount}/${detected.billing_cycle}. Review the billing details before confirming it.`
+          : `Found a ${detected.name} subscription for $${detected.amount}/${detected.billing_cycle} in your Gmail.`,
+      })
+
+      existingIds.add(detected.email_thread_id)
+      found++
     }
   }
 

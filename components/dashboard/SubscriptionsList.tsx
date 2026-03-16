@@ -107,7 +107,9 @@ function PendingReviewCard({
 
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-xs font-semibold">{sub.name}</span>
+                        <span className="text-xs font-semibold">
+                            {sub.name}
+                        </span>
                     </div>
                     <p className="text-[10px] text-muted-foreground mt-0.5">
                         {formatCurrency(sub.amount, sub.currency)}/
@@ -447,7 +449,8 @@ export function SubscriptionsList({
                     </div>
                     <p className="text-[11px] text-muted-foreground px-1">
                         These were found in your Gmail, but some billing details
-                        were incomplete or inferred. Accept the genuine ones and dismiss the rest.
+                        were incomplete or inferred. Accept the genuine ones and
+                        dismiss the rest.
                     </p>
                     <AnimatePresence>
                         {pending.map((sub) => (
