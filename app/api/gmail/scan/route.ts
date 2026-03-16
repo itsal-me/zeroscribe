@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import {
+  fetchIncrementalGmailMessages,
   fetchGmailMessages,
   fetchGmailMessage,
+  getLatestGmailHistoryId,
   detectSubscriptionFromEmail,
   detectStatusFromEmail,
   refreshAccessToken,
@@ -43,7 +45,7 @@ export async function POST() {
   // Get user's Gmail tokens
   const { data: profile } = await supabase
     .from('profiles')
-    .select('gmail_access_token, gmail_refresh_token, gmail_token_expiry, gmail_connected')
+    .select('gmail_access_token, gmail_refresh_token, gmail_token_expiry, gmail_connected, gmail_history_id')
     .eq('id', user.id)
     .single()
 
@@ -81,7 +83,25 @@ export async function POST() {
   }
 
   try {
-    const messages = await fetchGmailMessages(accessToken, MAX_SCAN_MESSAGES)
+    let usedIncrementalSync = false
+    let messages: { id: string; threadId: string }[] = []
+
+    if (profile.gmail_history_id) {
+      const incremental = await fetchIncrementalGmailMessages(
+        accessToken,
+        profile.gmail_history_id,
+        MAX_SCAN_MESSAGES
+      )
+      if (!incremental.resetRequired) {
+        messages = incremental.messages
+        usedIncrementalSync = true
+      }
+    }
+
+    if (!usedIncrementalSync) {
+      messages = await fetchGmailMessages(accessToken, MAX_SCAN_MESSAGES)
+    }
+
     const processedThreadIds = new Set<string>()
 
     // Fetch existing subscriptions for deduplication
@@ -295,6 +315,8 @@ export async function POST() {
     }
 
     // Update scan log and profile
+    const latestHistoryId = await getLatestGmailHistoryId(accessToken)
+
     await Promise.all([
       supabase
         .from('gmail_scan_logs')
@@ -307,7 +329,10 @@ export async function POST() {
         .eq('id', scanLog?.id),
       supabase
         .from('profiles')
-        .update({ gmail_last_scanned: new Date().toISOString() })
+        .update({
+          gmail_last_scanned: new Date().toISOString(),
+          gmail_history_id: latestHistoryId,
+        })
         .eq('id', user.id),
     ])
 

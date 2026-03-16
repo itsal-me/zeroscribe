@@ -32,6 +32,7 @@ export async function GET(request: Request) {
         gmail_access_token: tokens.access_token,
         gmail_refresh_token: tokens.refresh_token,
         gmail_token_expiry: new Date(tokens.expiry_date).toISOString(),
+        gmail_history_id: null,
       })
       .eq('id', state)
 

@@ -49,6 +49,7 @@ export function useProfile() {
       gmail_access_token: null,
       gmail_refresh_token: null,
       gmail_token_expiry: null,
+      gmail_history_id: null,
     }).eq('id', profile.id)
     setProfile((prev) => prev ? { ...prev, gmail_connected: false } : prev)
   }

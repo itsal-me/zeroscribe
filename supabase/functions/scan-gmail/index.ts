@@ -81,6 +81,7 @@ const MONTH_MAP: Record<string, number> = {
 
 const MAX_SCAN_MESSAGES = 80
 const MESSAGE_FETCH_CONCURRENCY = 8
+const FULL_SCAN_LOOKBACK_DAYS = 180
 
 function toISODate(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -176,6 +177,63 @@ async function refreshToken(refreshToken: string): Promise<string> {
   return data.access_token
 }
 
+async function getLatestGmailHistoryId(accessToken: string): Promise<string> {
+  const response = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/profile', {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  })
+  const data = await response.json()
+  if (!response.ok || !data.historyId) {
+    throw new Error(data.error?.message || 'Failed to fetch Gmail profile')
+  }
+  return String(data.historyId)
+}
+
+async function fetchIncrementalGmailMessages(
+  accessToken: string,
+  startHistoryId: string,
+  maxResults = MAX_SCAN_MESSAGES
+): Promise<{ messages: { id: string; threadId: string }[]; resetRequired: boolean }> {
+  const messages = new Map<string, { id: string; threadId: string }>()
+  let pageToken: string | undefined
+
+  while (messages.size < maxResults) {
+    const params = new URLSearchParams({
+      startHistoryId,
+      historyTypes: 'messageAdded',
+      maxResults: String(Math.min(100, maxResults)),
+    })
+    if (pageToken) params.set('pageToken', pageToken)
+
+    const response = await fetch(
+      `https://gmail.googleapis.com/gmail/v1/users/me/history?${params.toString()}`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    )
+    const data = await response.json()
+
+    if (!response.ok) {
+      const gmailError = data.error?.message || 'Failed to fetch Gmail history'
+      const resetRequired = response.status === 404 || gmailError.toLowerCase().includes('starthistoryid')
+      return { messages: [], resetRequired }
+    }
+
+    for (const entry of data.history || []) {
+      for (const added of entry.messagesAdded || []) {
+        const message = added.message
+        if (message?.id && message?.threadId && !messages.has(message.threadId)) {
+          messages.set(message.threadId, { id: message.id, threadId: message.threadId })
+        }
+        if (messages.size >= maxResults) break
+      }
+      if (messages.size >= maxResults) break
+    }
+
+    if (!data.nextPageToken || messages.size >= maxResults) break
+    pageToken = data.nextPageToken
+  }
+
+  return { messages: [...messages.values()], resetRequired: false }
+}
+
 function detectSubscription(subject: string, from: string, body: string, threadId: string) {
   const lower = (subject + ' ' + body + ' ' + from).toLowerCase()
   const billingKws = ['receipt', 'invoice', 'billing', 'payment', 'subscription', 'renewed', 'renewal']
@@ -248,8 +306,8 @@ function detectSubscription(subject: string, from: string, body: string, threadI
 
 async function scanUserGmail(userId: string, accessToken: string) {
   const queries = [
-    'category:purchases (subscription OR renewal OR renewed OR recurring OR membership OR "auto-renew" OR "auto renew" OR "next billing" OR "next payment" OR "will renew" OR "will be charged" OR "billed every" OR "charged every" OR "plan renewed" OR "subscription fee" OR "membership fee" OR "trial ending" OR "free trial") newer_than:400d -in:spam -in:trash',
-    '(subscription OR renewal OR renewed OR recurring OR membership OR "auto-renew" OR "auto renew" OR "next billing" OR "next payment" OR "will renew" OR "will be charged" OR "billed every" OR "charged every" OR "plan renewed" OR "subscription fee" OR "membership fee" OR "trial ending" OR "free trial") newer_than:400d -in:spam -in:trash',
+    `category:purchases (subscription OR renewal OR renewed OR recurring OR membership OR "auto-renew" OR "auto renew" OR "next billing" OR "next payment" OR "will renew" OR "will be charged" OR "billed every" OR "charged every" OR "plan renewed" OR "subscription fee" OR "membership fee" OR "trial ending" OR "free trial") newer_than:${FULL_SCAN_LOOKBACK_DAYS}d -in:spam -in:trash`,
+    `(subscription OR renewal OR renewed OR recurring OR membership OR "auto-renew" OR "auto renew" OR "next billing" OR "next payment" OR "will renew" OR "will be charged" OR "billed every" OR "charged every" OR "plan renewed" OR "subscription fee" OR "membership fee" OR "trial ending" OR "free trial") newer_than:${FULL_SCAN_LOOKBACK_DAYS}d -in:spam -in:trash`,
   ]
 
   let messages: { id: string; threadId: string }[] = []
@@ -353,7 +411,7 @@ Deno.serve(async (req) => {
     // Get users with Gmail connected
     const query = supabase
       .from('profiles')
-      .select('id, gmail_access_token, gmail_refresh_token, gmail_token_expiry')
+      .select('id, gmail_access_token, gmail_refresh_token, gmail_token_expiry, gmail_history_id')
       .eq('gmail_connected', true)
       .not('gmail_access_token', 'is', null)
 
@@ -395,21 +453,105 @@ Deno.serve(async (req) => {
       }
 
       try {
-        const { scanned, found } = await scanUserGmail(user.id, accessToken)
+        let messagesScanned = 0
+        let found = 0
+        let usedIncrementalSync = false
+
+        if (user.gmail_history_id) {
+          const incremental = await fetchIncrementalGmailMessages(accessToken, user.gmail_history_id)
+          if (!incremental.resetRequired) {
+            usedIncrementalSync = true
+            const existingIdsQuery = await supabase
+              .from('subscriptions')
+              .select('email_thread_id')
+              .eq('user_id', user.id)
+              .not('email_thread_id', 'is', null)
+
+            const existingIds = new Set(existingIdsQuery.data?.map((s: { email_thread_id: string }) => s.email_thread_id) || [])
+            const processedThreads = new Set<string>()
+            const candidateMessages = incremental.messages.filter((msg) => {
+              if (processedThreads.has(msg.threadId) || existingIds.has(msg.threadId)) return false
+              processedThreads.add(msg.threadId)
+              return true
+            })
+
+            messagesScanned = incremental.messages.length
+
+            for (let index = 0; index < candidateMessages.length; index += MESSAGE_FETCH_CONCURRENCY) {
+              const batch = candidateMessages.slice(index, index + MESSAGE_FETCH_CONCURRENCY)
+              const results = await Promise.all(
+                batch.map(async (msg) => {
+                  try {
+                    const emailResp = await fetch(
+                      `https://gmail.googleapis.com/gmail/v1/users/me/messages/${msg.id}?format=full`,
+                      { headers: { Authorization: `Bearer ${accessToken}` } }
+                    )
+                    const emailData = await emailResp.json()
+                    const headers = emailData.payload?.headers || []
+                    const subject = headers.find((h: { name: string; value: string }) => h.name === 'Subject')?.value || ''
+                    const from = headers.find((h: { name: string; value: string }) => h.name === 'From')?.value || ''
+
+                    let body = ''
+                    if (emailData.payload?.body?.data) {
+                      body = atob(emailData.payload.body.data.replace(/-/g, '+').replace(/_/g, '/'))
+                    }
+
+                    return detectSubscription(subject, from, body.slice(0, 2000), msg.threadId)
+                  } catch (_) {
+                    return null
+                  }
+                })
+              )
+
+              for (const detected of results) {
+                if (!detected) continue
+
+                await supabase.from('subscriptions').insert({
+                  user_id: user.id,
+                  ...detected,
+                  auto_detected: true,
+                  source: 'gmail',
+                  confidence_score: null,
+                })
+
+                await supabase.from('notifications').insert({
+                  user_id: user.id,
+                  type: 'payment_detected',
+                  title: detected.status === 'pending_review' ? `Review: ${detected.name} detected` : `${detected.name} detected`,
+                  message: detected.status === 'pending_review'
+                    ? `Found a possible ${detected.name} subscription for $${detected.amount}/${detected.billing_cycle}. Review the billing details before confirming it.`
+                    : `Found a ${detected.name} subscription for $${detected.amount}/${detected.billing_cycle} in your Gmail.`,
+                })
+
+                existingIds.add(detected.email_thread_id)
+                found++
+              }
+            }
+          }
+        }
+
+        if (!usedIncrementalSync) {
+          const result = await scanUserGmail(user.id, accessToken)
+          messagesScanned = result.scanned
+          found = result.found
+        }
+
+        const latestHistoryId = await getLatestGmailHistoryId(accessToken)
 
         await Promise.all([
           supabase.from('gmail_scan_logs').update({
             status: 'success',
-            emails_scanned: scanned,
+            emails_scanned: messagesScanned,
             subscriptions_found: found,
             completed_at: new Date().toISOString(),
           }).eq('id', log?.id),
           supabase.from('profiles').update({
             gmail_last_scanned: new Date().toISOString(),
+            gmail_history_id: latestHistoryId,
           }).eq('id', user.id),
         ])
 
-        results.push({ userId: user.id, scanned, found })
+        results.push({ userId: user.id, scanned: messagesScanned, found })
       } catch (err) {
         await supabase.from('gmail_scan_logs').update({
           status: 'failed',

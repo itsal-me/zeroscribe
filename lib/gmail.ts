@@ -10,6 +10,8 @@ export const GMAIL_SCOPES = [
   'openid',
 ].join(' ')
 
+const FULL_SCAN_LOOKBACK_DAYS = 180
+
 export function getGmailAuthUrl(userId: string, redirectUri: string): string {
   const params = new URLSearchParams({
     client_id: process.env.GOOGLE_CLIENT_ID!,
@@ -720,8 +722,8 @@ export async function fetchGmailMessages(
   maxResults = 80
 ): Promise<{ id: string; threadId: string }[]> {
   const queries = [
-    'category:purchases (subscription OR renewal OR renewed OR recurring OR membership OR "auto-renew" OR "auto renew" OR "next billing" OR "next payment" OR "will renew" OR "will be charged" OR "billed every" OR "charged every" OR "plan renewed" OR "subscription fee" OR "membership fee" OR "trial ending" OR "free trial") newer_than:400d -in:spam -in:trash',
-    '(subscription OR renewal OR renewed OR recurring OR membership OR "auto-renew" OR "auto renew" OR "next billing" OR "next payment" OR "will renew" OR "will be charged" OR "billed every" OR "charged every" OR "plan renewed" OR "subscription fee" OR "membership fee" OR "trial ending" OR "free trial") newer_than:400d -in:spam -in:trash',
+    `category:purchases (subscription OR renewal OR renewed OR recurring OR membership OR "auto-renew" OR "auto renew" OR "next billing" OR "next payment" OR "will renew" OR "will be charged" OR "billed every" OR "charged every" OR "plan renewed" OR "subscription fee" OR "membership fee" OR "trial ending" OR "free trial") newer_than:${FULL_SCAN_LOOKBACK_DAYS}d -in:spam -in:trash`,
+    `(subscription OR renewal OR renewed OR recurring OR membership OR "auto-renew" OR "auto renew" OR "next billing" OR "next payment" OR "will renew" OR "will be charged" OR "billed every" OR "charged every" OR "plan renewed" OR "subscription fee" OR "membership fee" OR "trial ending" OR "free trial") newer_than:${FULL_SCAN_LOOKBACK_DAYS}d -in:spam -in:trash`,
   ]
 
   for (const rawQuery of queries) {
@@ -737,6 +739,66 @@ export async function fetchGmailMessages(
   }
 
   return []
+}
+
+export async function getLatestGmailHistoryId(accessToken: string): Promise<string> {
+  const response = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/profile', {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  })
+  const data = await response.json()
+  if (!response.ok || !data.historyId) {
+    throw new Error(data.error?.message || 'Failed to fetch Gmail profile')
+  }
+  return String(data.historyId)
+}
+
+export async function fetchIncrementalGmailMessages(
+  accessToken: string,
+  startHistoryId: string,
+  maxResults = 80
+): Promise<{ messages: { id: string; threadId: string }[]; resetRequired: boolean }> {
+  const messages = new Map<string, { id: string; threadId: string }>()
+  let pageToken: string | undefined
+
+  while (messages.size < maxResults) {
+    const params = new URLSearchParams({
+      startHistoryId,
+      historyTypes: 'messageAdded',
+      maxResults: String(Math.min(100, maxResults)),
+    })
+    if (pageToken) params.set('pageToken', pageToken)
+
+    const response = await fetch(
+      `https://gmail.googleapis.com/gmail/v1/users/me/history?${params.toString()}`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    )
+    const data = await response.json()
+
+    if (!response.ok) {
+      const gmailError = data.error?.message || 'Failed to fetch Gmail history'
+      const resetRequired = response.status === 404 || gmailError.toLowerCase().includes('starthistoryid')
+      return { messages: [], resetRequired }
+    }
+
+    for (const entry of data.history || []) {
+      for (const added of entry.messagesAdded || []) {
+        const message = added.message
+        if (message?.id && message?.threadId && !messages.has(message.threadId)) {
+          messages.set(message.threadId, {
+            id: message.id,
+            threadId: message.threadId,
+          })
+        }
+        if (messages.size >= maxResults) break
+      }
+      if (messages.size >= maxResults) break
+    }
+
+    if (!data.nextPageToken || messages.size >= maxResults) break
+    pageToken = data.nextPageToken
+  }
+
+  return { messages: [...messages.values()], resetRequired: false }
 }
 
 export async function fetchGmailMessage(

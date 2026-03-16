@@ -7,6 +7,7 @@ export interface Profile {
   gmail_access_token: string | null
   gmail_refresh_token: string | null
   gmail_token_expiry: string | null
+  gmail_history_id: string | null
   gmail_last_scanned: string | null
   notification_email: boolean
   notification_days_before: number
